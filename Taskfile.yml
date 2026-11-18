@@ -1,0 +1,136 @@
+# 이 프로젝트의 모든 실행은 여기를 거친다. 사람 · CI · 서버가 같은 `task <이름>` 을 친다.
+#   task --list        태스크 목록
+#   task data:news TICKER=kakao START=2026-10-01 END=2026-10-31
+version: "3"
+
+env:
+  PYTHONUTF8: "1" # Windows 에서도 한글 출력이 깨지지 않게
+
+tasks:
+  default:
+    desc: 태스크 목록을 보여 준다
+    silent: true
+    cmds:
+      - task --list
+
+  setup:
+    desc: 의존성을 설치한다 (uv.lock 그대로)
+    cmds:
+      - uv sync --locked --all-groups
+
+  test:
+    desc: 테스트를 돌린다
+    cmds:
+      - uv run --locked pytest -q
+
+  # ── 데이터 ─────────────────────────────────────────────
+  data:prices:
+    desc: 종목 · 지수의 일별 종가를 받는다 (OUT 기본값 data)
+    cmds:
+      - uv run --locked --group collect python -m collect.prices --out {{.OUT | default "data"}}
+
+  data:news:
+    desc: 헤드라인을 하루 단위로 받는다 (START · END · TICKER · OUT 로 범위 지정)
+    cmds:
+      - >-
+        uv run --locked --group collect python -m collect.news
+        --start {{.START | default "2023-01-01"}}
+        {{if .END}}--end {{.END}}{{end}}
+        {{if .TICKER}}--ticker {{.TICKER}}{{end}}
+        --out {{.OUT | default "data"}}
+
+  data:backfill:
+    desc: 과거 주가와 헤드라인을 한 번에 받는다 (로컬에서 1회, 끊기면 다시 치면 이어서 받는다)
+    cmds:
+      - task: data:prices
+      - task: data:news
+
+  data:daily:
+    desc: 최근 3일 헤드라인과 주가를 data/incoming 에 받는다
+    cmds:
+      - uv run --locked --group collect python -m collect.prices --out data/incoming
+      - uv run --locked --group collect python -m collect.news --days 3 --out data/incoming
+
+  data:check:
+    desc: 수집분을 검사한다 (종목 누락 · 빈 종목 · 중복 · 주가 날짜). DIR 기본값 data
+    cmds:
+      - uv run --locked --group collect python -m collect.check --dir {{.DIR | default "data"}}
+
+  data:store:
+    desc: (7단계) data/incoming 을 버킷에 올린다 — 서버에서만
+    cmds: [{task: todo, vars: {WHAT: "data:store — PLAN 7단계"}}]
+
+  data:fetch:
+    desc: (7단계) 버킷의 전체 데이터와 현재 모델을 받는다 — 서버에서만
+    cmds: [{task: todo, vars: {WHAT: "data:fetch — PLAN 7단계"}}]
+
+  # ── 모델 ───────────────────────────────────────────────
+  model:features:
+    desc: (2단계) 헤드라인 + 주가 → 학습표
+    cmds: [{task: todo, vars: {WHAT: "model:features — PLAN 2단계"}}]
+
+  model:train:
+    desc: (3단계) 학습
+    cmds: [{task: todo, vars: {WHAT: "model:train — PLAN 3단계"}}]
+
+  model:gate:
+    desc: (3단계) 검증 게이트 — 실패하면 종료 코드 1
+    cmds: [{task: todo, vars: {WHAT: "model:gate — PLAN 3단계"}}]
+
+  model:export:
+    desc: (3단계) ONNX 변환
+    cmds: [{task: todo, vars: {WHAT: "model:export — PLAN 3단계"}}]
+
+  model:parity:
+    desc: (3단계) scikit-learn 과 ONNX 의 답 비교
+    cmds: [{task: todo, vars: {WHAT: "model:parity — PLAN 3단계"}}]
+
+  model:card:
+    desc: (3단계) 모델 카드 model.json
+    cmds: [{task: todo, vars: {WHAT: "model:card — PLAN 3단계"}}]
+
+  model:
+    desc: 학습표 → 학습 → 게이트 → ONNX → parity → 카드를 순서대로
+    cmds:
+      - task: model:features
+      - task: model:train
+      - task: model:gate
+      - task: model:export
+      - task: model:parity
+      - task: model:card
+
+  # ── API ────────────────────────────────────────────────
+  api:serve:
+    desc: (4단계) 로컬에서 API 실행
+    cmds: [{task: todo, vars: {WHAT: "api:serve — PLAN 4단계"}}]
+
+  api:image:
+    desc: (4단계) 이미지 빌드
+    cmds: [{task: todo, vars: {WHAT: "api:image — PLAN 4단계"}}]
+
+  api:smoke:
+    desc: (4단계) /health 와 /predict 를 한 번씩 부른다
+    cmds: [{task: todo, vars: {WHAT: "api:smoke — PLAN 4단계"}}]
+
+  # ── 배포 (서버에서만) ──────────────────────────────────
+  deploy:image:
+    desc: (6단계) 새 이미지 태그로 교체, 안 뜨면 이전 태그로
+    cmds: [{task: todo, vars: {WHAT: "deploy:image — PLAN 6단계"}}]
+
+  deploy:promote:
+    desc: (7단계) 새 모델을 버킷에 올리고 띄운 뒤 포인터 변경
+    cmds: [{task: todo, vars: {WHAT: "deploy:promote — PLAN 7단계"}}]
+
+  deploy:rollback:
+    desc: (8단계) VER 의 모델로 되돌린다
+    cmds: [{task: todo, vars: {WHAT: "deploy:rollback — PLAN 8단계"}}]
+
+  deploy:status:
+    desc: (6단계) 서버의 이미지 태그 · 모델 버전 · /health
+    cmds: [{task: todo, vars: {WHAT: "deploy:status — PLAN 6단계"}}]
+
+  todo:
+    internal: true
+    silent: true
+    cmds:
+      - echo "아직 만들지 않았다 → {{.WHAT}}" && exit 1

@@ -1,0 +1,74 @@
+# 종목 설정. 코드에는 종목을 적지 않는다 — 수집 · 특징 · API 가 모두 이 파일을 읽는다.
+#
+#   code       주가 코드 (FinanceDataReader)
+#   benchmark  비교 지수 — 정답은 "이 지수보다 더 올랐는가"
+#   timezone   기사 날짜를 세는 기준 (그 시장의 현지 날짜)
+#   news       Google 뉴스 RSS 검색어와 언어 · 지역
+#   match      이 종목 기사로 인정하는 패턴 (정규식, 대소문자 무시). 기업명 언급 건수에도 쓴다
+#   exclude    섞여 들어오는 다른 회사 (이 말이 있으면 버린다)
+#   people     대표 · 창업자 등 회사를 대표하는 사람
+#   products   대표 상품 · 서비스 · 아티스트
+#
+# 애플 · SM 의 대표는 2026-11-18 에 기사로 확인했다. 나머지 people · products 는 초안이다.
+tickers:
+  samsung:
+    name: 삼성전자
+    code: "005930"
+    market: KOSPI
+    benchmark: KS11
+    timezone: Asia/Seoul
+    news: {query: "삼성전자", hl: ko, gl: KR}
+    match: ["삼성전자", "삼성"]
+    exclude: ["삼성생명", "삼성화재", "삼성물산", "삼성바이오", "삼성SDI", "삼성증권", "삼성중공업", "삼성 라이온즈"]
+    people: ["이재용", "전영현", "노태문", "한종희"]
+    products: ["갤럭시", "HBM", "파운드리", "엑시노스", "비스포크"]
+
+  kakao:
+    name: 카카오
+    code: "035720"
+    market: KOSPI
+    benchmark: KS11
+    timezone: Asia/Seoul
+    news: {query: "카카오", hl: ko, gl: KR}
+    match: ["카카오"]
+    exclude: ["카카오 원두", "카카오 함량", "카카오닙스"]
+    people: ["정신아", "김범수", "홍은택"]
+    products: ["카카오톡", "카톡", "카카오페이", "카카오뱅크", "카카오T", "멜론", "카카오맵"]
+
+  sm:
+    name: SM엔터테인먼트
+    code: "041510"
+    market: KOSDAQ
+    benchmark: KQ11
+    timezone: Asia/Seoul
+    news: {query: "SM엔터테인먼트 OR SM엔터 OR 에스엠엔터", hl: ko, gl: KR}
+    match: ["SM엔터", "에스엠엔터", "(?<![A-Za-z])SM(?![A-Za-z])", "에스엠"]
+    exclude: ["SM그룹", "SM상선", "SM벡셀", "SM우방", "에스엠투네트웍스", "에스엠코어", "에스엠씨"]
+    # 이성수 · 탁영준 공동대표(~2023-03) → 장철혁(2023-03~) → 탁영준 · 장철혁 공동대표(2026-01 기사 기준). 이수만은 창업자
+    people: ["이수만", "장철혁", "탁영준", "이성수"]
+    products: ["에스파", "aespa", "NCT", "라이즈", "RIIZE", "레드벨벳", "샤이니", "엑소", "EXO", "동방신기"]
+
+  apple:
+    name: Apple
+    code: "AAPL"
+    market: NASDAQ
+    benchmark: IXIC
+    timezone: America/New_York
+    news: {query: "Apple AAPL OR iPhone OR \"Tim Cook\"", hl: en, gl: US}
+    match: ["Apple", "AAPL"]
+    exclude: ["apple pie", "apple cider", "Applebee"]
+    # Tim Cook 대표(~2026-08-31, 이후 이사회 의장) → John Ternus 대표(2026-09-01~)
+    people: ["Tim Cook", "John Ternus", "Jeff Williams", "Craig Federighi"]
+    products: ["iPhone", "iPad", "Mac", "Apple Watch", "AirPods", "Vision Pro", "App Store", "Apple Intelligence"]
+
+  nvidia:
+    name: Nvidia
+    code: "NVDA"
+    market: NASDAQ
+    benchmark: IXIC
+    timezone: America/New_York
+    news: {query: "Nvidia", hl: en, gl: US}
+    match: ["Nvidia", "NVDA"]
+    exclude: []
+    people: ["Jensen Huang"]
+    products: ["GeForce", "RTX", "Blackwell", "Rubin", "H100", "CUDA", "DGX"]
