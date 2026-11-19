@@ -93,7 +93,7 @@
 
 - 조회를 끝낸 날짜를 `data/news/<종목>/_done.txt` 에 적는다. 다시 실행하면 그 날짜는 건너뛴다.
 - 기사는 받는 즉시 파일에 쓴다. 중간에 멈춰도 받은 것은 남는다.
-- 명령: `task data:news` (기본 시작일 2022-01-01). 진행 상황은 `backfill.log` 와 `task data:check`.
+- 명령: `task data:news` (기본 시작일 2022-01-01). 진행 상황은 `backfill.log` 와 `task data:check`. — 11/19 에 태스크와 `collect/news.py` 를 지웠다 (git 기록에는 남아 있다).
 
 ## 4. 헤드라인 분류
 

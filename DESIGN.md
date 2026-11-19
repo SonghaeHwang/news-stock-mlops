@@ -85,7 +85,7 @@
 | `test` | pytest (특징 · API · 게이트 판정) | 로컬 · GitHub |
 | `data:bigkinds` | 사람이 내려받아 넣은 빅카인즈 엑셀 → 헤드라인 파일 (제목으로 거른다) | 로컬 · (자동 흐름에서 어디서 돌릴지 미정) |
 | `data:prices` | 종목 · 지수의 일별 종가 | 로컬 · GitHub |
-| ~~`data:daily`~~ | (그 전의 기록) Google 에서 어제~오늘 헤드라인 수집 → `data/incoming/`. 11/19 에 헤드라인은 Google 을 쓰지 않기로 해 흐름에서 뺐다 | — |
+| ~~`data:daily`~~ | (그 전의 기록) Google 에서 어제~오늘 헤드라인 수집 → `data/incoming/`. 11/19 에 헤드라인은 Google 을 쓰지 않기로 해 태스크와 `collect/news.py` 를 지웠다 | — |
 | `data:check` | 수집분 검사 (빈 날, 중복, 날짜 범위, 종목 누락) | GitHub |
 | `data:store` | `data/incoming/` 을 버킷에 올린다 | 서버 |
 | `data:fetch` | 버킷의 전체 데이터와 현재 모델을 받는다 | 서버 |
@@ -195,7 +195,7 @@ models/current.json                 포인터 — 지금 서비스 중인 버전
 ```
 Taskfile.yml
 config/tickers.yml  lexicon.yml
-collect/            news.py (미국 종목, Google)  bigkinds.py (국내 종목, 빅카인즈 엑셀 변환)  prices.py  check.py
+collect/            bigkinds.py (빅카인즈 엑셀 변환)  prices.py  check.py
 features/           build.py            (학습 · API 공용)
 training/           dataset.py  train.py  gate.py  export_onnx.py  parity.py  card.py
 api/                app.py  predictors/  Dockerfile  tests/

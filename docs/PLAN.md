@@ -34,7 +34,7 @@
 - [x] 시험 수집: 한 종목 한 달치. 건수 · 중복 · 날짜를 눈으로 확인
 - [x] ~~미국 종목(애플 · 엔비디아) 전체 수집~~ — 11/19 에 두 종목을 하이브 · SK하이닉스로 바꿨다 (받은 데이터는 지웠다). 아래는 그 전의 기록: `task data:news` (Google, 2022-01 ~ 어제) — 멈춰 있다 (11/19 기준 134일치, 2024-06 ~ 2026-11 일부). 다시 치면 이어서 받는다. 속도와 이어받기는 [COLLECTION.md](COLLECTION.md) 3절
 - [x] `collect/check.py` + `task data:check` — 빈 날 비율, 중복, 날짜 범위, 종목 누락
-- [x] ~~`task data:daily`~~ — 11/19 에 뺐다. 헤드라인은 Google 을 쓰지 않고 빅카인즈만 쓴다 (이유는 [TROUBLES.md](TROUBLES.md) 마지막 절). 그 전의 기록: 어제 ~ 오늘만 Google 에서 수집해 `data/incoming/` 에 둔다. 태스크와 `collect/news.py` 를 지울지는 정하지 않았다
+- [x] ~~`task data:daily`~~ — 11/19 에 뺐다. 헤드라인은 Google 을 쓰지 않고 빅카인즈만 쓴다 (이유는 [TROUBLES.md](TROUBLES.md) 마지막 절). 그 전의 기록: 어제 ~ 오늘만 Google 에서 수집해 `data/incoming/` 에 둔다. 태스크(`data:daily` · `data:news`)와 `collect/news.py` 는 11/19 에 지웠다
 
 다섯 종목(삼성전자 · 카카오 · SM · 하이브 · SK하이닉스) 모두 빅카인즈에서 받는다 (11/19 변경). 기준은 [COLLECTION.md](COLLECTION.md) 6절.
 
@@ -44,7 +44,8 @@
 - [x] `[직접]` 첫 내려받기 한 건(카카오 2022-10)으로 확인: 화면 검색 건수 10,093 = 파일 행 수 10,093, 한도는 20,000건 (11/19, Aside 로 내려받음)
 - [ ] `[직접]` 전체 내려받기: 5종목 × 59개월 = 295개 파일 (하이브 · SK하이닉스는 11/19 추가) → `data/raw/bigkinds/<종목>_<시작일>-<끝일>.xlsx`
 - [ ] `task data:bigkinds` 로 변환, `task data:check` 로 검사
-- [ ] 새 데이터를 넣는 방법을 정한다: 사람이 빅카인즈 엑셀을 내려받아 넣는 것이 시작점이다. `model.yml` 을 무엇으로 시작시킬지(수동 실행 / 새 파일 올리기 등)는 미정 — 7단계 전까지
+- [x] 새 데이터를 넣는 방법 (11/19 정함): 엑셀을 `data/raw/bigkinds/` 에 넣으면 `task data:submit` 이 변환 → 주가 → 검사 → `dataset/`(날짜별 건수, 제목 없음) 커밋 · 푸시까지 한다. `dataset/` 이 바뀐 커밋이 올라오면 `model.yml` 이 시작된다. `task data:watch` 를 켜 두면 파일을 넣는 것만으로 `data:submit` 이 돈다
+- [x] `collect/ingest.py`, `collect/watch.py`, `features/daily.py`, `features/build.py`, `training/*`, `config/lexicon.yml`(초안), `config/gate.yml`(초안), `.github/workflows/model.yml` · `ci.yml` — 가짜 건수 + 실제 주가로 `task model` 통과 · 탈락을 확인했다. 실제 데이터와 GitHub 에서의 실행은 아직이다
 
 끝났다는 기준: `task data:check` 가 다섯 종목 모두 통과한다.
 

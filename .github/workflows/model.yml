@@ -1,0 +1,72 @@
+# 새 데이터 → 학습 → 검증 → 배포.
+# 시작: dataset/ 이 바뀐 커밋이 main 에 올라오면 (로컬의 `task data:submit` 이 올린다), 또는 수동 실행.
+# 여기에는 로직을 적지 않는다. 각 Job 은 checkout → 설치 → `task <이름>` 이다.
+name: model
+
+on:
+  push:
+    branches: [main]
+    paths: ["dataset/**"]
+  workflow_dispatch:
+
+concurrency:
+  group: model
+  cancel-in-progress: false
+
+jobs:
+  # 지금 서비스 중인 모델을 버킷에서 꺼낸다 (서버만 버킷에 닿는다). 서버를 붙이기 전에는 건너뛴다
+  current:
+    if: vars.MODEL_BUCKET != ''
+    runs-on: [self-hosted, lightsail]
+    steps:
+      - uses: actions/checkout@v4
+      - run: task data:fetch
+      - uses: actions/upload-artifact@v4
+        with:
+          name: current
+          path: artifacts/current
+          if-no-files-found: ignore
+
+  # 학습표 → 학습 → 게이트 → ONNX → parity → 카드. 게이트나 parity 에서 멈추면 promote 는 돌지 않는다
+  train:
+    needs: current
+    if: ${{ !cancelled() && (needs.current.result == 'success' || needs.current.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: arduino/setup-task@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        if: needs.current.result == 'success'
+        continue-on-error: true
+        with:
+          name: current
+          path: artifacts/current
+      - run: task test
+      - run: task data:prices
+      - run: task model
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: model
+          path: |
+            artifacts/model.onnx
+            artifacts/model.json
+            artifacts/metrics.json
+            artifacts/gate.json
+            artifacts/parity.json
+
+  # 통과한 모델을 버킷에 올리고 서버가 그 모델로 답하게 한다
+  promote:
+    needs: train
+    if: vars.MODEL_BUCKET != ''
+    runs-on: [self-hosted, lightsail]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: model
+          path: artifacts
+      - run: task deploy:promote

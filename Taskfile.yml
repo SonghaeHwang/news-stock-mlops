@@ -20,7 +20,7 @@ tasks:
   test:
     desc: 테스트를 돌린다
     cmds:
-      - uv run --locked pytest -q
+      - uv run --locked --all-groups pytest -q
 
   # ── 데이터 ─────────────────────────────────────────────
   data:prices:
@@ -34,9 +34,31 @@ tasks:
       - uv run --locked --group collect python -m collect.bigkinds query
 
   data:bigkinds:
-    desc: 빅카인즈에서 받은 엑셀(data/raw/bigkinds)을 헤드라인 파일로 바꾼다. 제목이 그 종목 기사인 것만 저장
+    desc: 빅카인즈에서 받은 엑셀(data/raw/bigkinds)을 모두 헤드라인 파일로 바꾼다 (보통은 data:ingest 를 쓴다)
     cmds:
       - uv run --locked --group collect python -m collect.bigkinds convert --out {{.OUT | default "data"}}
+
+  data:ingest:
+    desc: 새로 넣은 빅카인즈 엑셀(data/raw/bigkinds)을 변환하고 dataset/ 을 다시 만든다. REBUILD=1 이면 전부 다시 변환
+    cmds:
+      - uv run --locked --group collect python -m collect.ingest {{if .REBUILD}}--rebuild{{end}}
+
+  data:submit:
+    desc: 새 엑셀 반영 → 주가 → 검사 → dataset/ 을 커밋하고 올린다 (올라가면 model.yml 이 학습 · 검증 · 배포를 시작한다)
+    cmds:
+      - task: data:ingest
+      - task: data:prices
+      - task: data:check
+      - git add dataset
+      - cmd: >-
+          git diff --cached --quiet -- dataset
+          && echo "dataset/ 이 바뀌지 않았다 — 올릴 것이 없다"
+          || (git commit -m "data: 헤드라인 건수 갱신 ($(git diff --cached --name-only -- dataset | wc -l | tr -d ' ')개 파일)" -- dataset && git push)
+
+  data:watch:
+    desc: data/raw/bigkinds 를 지켜보다가 새 엑셀이 들어오면 data:submit 을 실행한다 (Ctrl+C 로 멈춘다)
+    cmds:
+      - uv run --locked --group collect python -m collect.watch
 
   data:check:
     desc: 수집분을 검사한다 (종목 누락 · 빈 종목 · 중복 · 주가 날짜). DIR 기본값 data
@@ -53,28 +75,34 @@ tasks:
 
   # ── 모델 ───────────────────────────────────────────────
   model:features:
-    desc: (2단계) 헤드라인 + 주가 → 학습표
-    cmds: [{task: todo, vars: {WHAT: "model:features — PLAN 2단계"}}]
+    desc: 날짜별 건수(dataset/) + 주가 → 학습표 artifacts/dataset.csv
+    cmds:
+      - uv run --locked --group collect --group train python -m training.dataset --dataset {{.DATASET | default "dataset"}} --prices {{.PRICES | default "data/prices"}} --out {{.ART | default "artifacts"}}
 
   model:train:
-    desc: (3단계) 학습
-    cmds: [{task: todo, vars: {WHAT: "model:train — PLAN 3단계"}}]
+    desc: 학습 (마지막 60거래일은 평가용). SAMPLE=0.05 처럼 주면 학습 행의 일부만 쓴다 (탈락 시연용)
+    cmds:
+      - uv run --locked --group collect --group train python -m training.train --art {{.ART | default "artifacts"}} --sample {{.SAMPLE | default "1.0"}}
 
   model:gate:
-    desc: (3단계) 검증 게이트 — 실패하면 종료 코드 1
-    cmds: [{task: todo, vars: {WHAT: "model:gate — PLAN 3단계"}}]
+    desc: 검증 게이트 (데이터 · 기준선 · 현재 모델) — 탈락하면 종료 코드 1
+    cmds:
+      - uv run --locked --group collect --group train python -m training.gate --art {{.ART | default "artifacts"}} --current {{.CURRENT | default "artifacts/current"}}
 
   model:export:
-    desc: (3단계) ONNX 변환
-    cmds: [{task: todo, vars: {WHAT: "model:export — PLAN 3단계"}}]
+    desc: ONNX 변환 → artifacts/model.onnx
+    cmds:
+      - uv run --locked --group collect --group train python -m training.export_onnx --art {{.ART | default "artifacts"}}
 
   model:parity:
-    desc: (3단계) scikit-learn 과 ONNX 의 답 비교
-    cmds: [{task: todo, vars: {WHAT: "model:parity — PLAN 3단계"}}]
+    desc: scikit-learn 과 ONNX 의 답 비교 — 다르면 종료 코드 1
+    cmds:
+      - uv run --locked --group collect --group train python -m training.parity --art {{.ART | default "artifacts"}}
 
   model:card:
-    desc: (3단계) 모델 카드 model.json
-    cmds: [{task: todo, vars: {WHAT: "model:card — PLAN 3단계"}}]
+    desc: 모델 카드 artifacts/model.json (버전 이름 m<날짜>-<실행 번호>)
+    cmds:
+      - uv run --locked --group collect --group train python -m training.card --art {{.ART | default "artifacts"}} --version "{{.VERSION}}"
 
   model:
     desc: 학습표 → 학습 → 게이트 → ONNX → parity → 카드를 순서대로

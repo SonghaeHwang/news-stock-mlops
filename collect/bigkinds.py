@@ -87,37 +87,43 @@ def to_row(r: dict) -> dict:
     }
 
 
+def convert_file(f: Path, out: Path, tickers: dict[str, dict]) -> tuple[int, int, int, int]:
+    """엑셀 한 개를 헤드라인 파일에 더한다. (행, 저장, 이미 있음, 제목에 없음) 을 돌려준다."""
+    slug = f.stem.split("_")[0]
+    if slug not in tickers or "bigkinds" not in tickers[slug]:
+        sys.exit(f"{f.name}: 파일 이름이 <슬러그>_ 로 시작해야 한다 (빅카인즈로 받는 종목: "
+                 f"{', '.join(s for s, t in tickers.items() if 'bigkinds' in t)})")
+    folder = out / "news" / slug
+    folder.mkdir(parents=True, exist_ok=True)
+    seen = set()
+    for j in folder.glob("*.jsonl"):
+        with open(j, encoding="utf-8") as fh:
+            seen.update(json.loads(line)["id"] for line in fh)
+    rows = read_xlsx(f)
+    saved = had = unrelated = 0
+    for r in rows:
+        row = to_row(r)
+        if not is_about(row["title"], tickers[slug]):
+            unrelated += 1  # 본문 · 기관 항목에만 종목 이름이 있는 기사
+            continue
+        if row["id"] in seen:
+            had += 1
+            continue
+        seen.add(row["id"])
+        with open(folder / f"{row['date'][:7]}.jsonl", "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+        saved += 1
+    return len(rows), saved, had, unrelated
+
+
 def convert(raw: Path, out: Path, tickers: dict[str, dict]) -> None:
     files = sorted(raw.glob("*.xlsx"))
     if not files:
         sys.exit(f"{raw} 에 엑셀 파일이 없다")
     print(f"{'파일':<34}{'행':>7}{'저장':>7}{'이미 있음':>8}{'제목에 없음':>9}")
     for f in files:
-        slug = f.stem.split("_")[0]
-        if slug not in tickers or "bigkinds" not in tickers[slug]:
-            sys.exit(f"{f.name}: 파일 이름이 <슬러그>_ 로 시작해야 한다 (빅카인즈로 받는 종목: "
-                     f"{', '.join(s for s, t in tickers.items() if 'bigkinds' in t)})")
-        folder = out / "news" / slug
-        folder.mkdir(parents=True, exist_ok=True)
-        seen = set()
-        for j in folder.glob("*.jsonl"):
-            with open(j, encoding="utf-8") as fh:
-                seen.update(json.loads(line)["id"] for line in fh)
-        rows = read_xlsx(f)
-        saved = had = unrelated = 0
-        for r in rows:
-            row = to_row(r)
-            if not is_about(row["title"], tickers[slug]):
-                unrelated += 1  # 본문 · 기관 항목에만 종목 이름이 있는 기사
-                continue
-            if row["id"] in seen:
-                had += 1
-                continue
-            seen.add(row["id"])
-            with open(folder / f"{row['date'][:7]}.jsonl", "a", encoding="utf-8") as fh:
-                fh.write(json.dumps(row, ensure_ascii=False) + "\n")
-            saved += 1
-        print(f"{f.name:<34}{len(rows):>7}{saved:>7}{had:>8}{unrelated:>9}")
+        n, saved, had, unrelated = convert_file(f, out, tickers)
+        print(f"{f.name:<34}{n:>7}{saved:>7}{had:>8}{unrelated:>9}")
 
 
 def main() -> None:

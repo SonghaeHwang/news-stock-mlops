@@ -1,0 +1,19 @@
+# 코드가 바뀌면 테스트를 돌린다. (이미지 빌드와 서버 배포 Job 은 PLAN 5 · 6단계에서 붙인다)
+name: ci
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["dataset/**", "docs/**", "*.md"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: arduino/setup-task@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: task test
