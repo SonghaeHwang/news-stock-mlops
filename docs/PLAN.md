@@ -18,23 +18,23 @@
 
 ## 0단계 — 준비 (11/18 수)
 
-- [ ] Task 설치 (`winget install Task.Task`), `task --version` 확인
-- [ ] `[직접]` GitHub 에 비공개 저장소 `news-stock-mlops` 만들기
-- [ ] `git init`, `uv init`, `.gitignore` (`data/`, `artifacts/`, `.env`)
-- [ ] `Taskfile.yml` 뼈대: `setup`, `test` 와 묶음 네 개(`data:` `model:` `api:` `deploy:`)의 빈 태스크에 `desc`
-- [ ] `config/tickers.yml` — 다섯 종목의 코드 · 시장 · 비교 지수 · 검색어 · 언어 · 별칭 · 대표(재임 기간) · 대표 상품
-- [ ] `[직접]` AWS 콘솔에 로그인되는지, Lightsail 을 쓸 수 있는지 확인
+- [x] Task 설치 (`winget install Task.Task`), `task --version` 확인
+- [x] `[직접]` GitHub 에 비공개 저장소 `news-stock-mlops` 만들기
+- [x] `git init`, `uv init`, `.gitignore` (`data/`, `artifacts/`, `.env`)
+- [x] `Taskfile.yml` 뼈대: `setup`, `test` 와 묶음 네 개(`data:` `model:` `api:` `deploy:`)의 빈 태스크에 `desc`
+- [x] `config/tickers.yml` — 다섯 종목의 코드 · 시장 · 비교 지수 · 검색어 · 언어 · 별칭 · 대표(재임 기간) · 대표 상품
+- [x] `[직접]` AWS 콘솔에 로그인되는지, Lightsail 을 쓸 수 있는지 확인
 
 끝났다는 기준: `task --list` 에 태스크 목록이 설명과 함께 나온다.
 
 ## 1단계 — 데이터 수집 (11/18 수 ~ 11/19 목)
 
-- [ ] `collect/prices.py` — 다섯 종목과 지수 세 개의 일별 종가 → `data/prices/<코드>.csv`
-- [ ] `collect/news.py` — 종목 · 날짜 범위를 받아 하루 단위로 조회 → `data/news/<종목>/<YYYY-MM>.jsonl`. 이미 받은 날은 건너뛴다(끊겨도 이어서 받게)
-- [ ] 시험 수집: 한 종목 한 달치. 건수 · 중복 · 날짜를 눈으로 확인
-- [ ] `task data:backfill` 로 전체 수집 시작 (다섯 종목, 2022-01 ~ 어제). 조회 사이에 간격을 둔다
-- [ ] `collect/check.py` + `task data:check` — 빈 날 비율, 중복, 날짜 범위, 종목 누락
-- [ ] `task data:daily` — 어제 ~ 오늘만 수집해 `data/incoming/` 에 둔다
+- [x] `collect/prices.py` — 다섯 종목과 지수 세 개의 일별 종가 → `data/prices/<코드>.csv`
+- [x] `collect/news.py` — 종목 · 날짜 범위를 받아 하루 단위로 조회 → `data/news/<종목>/<YYYY-MM>.jsonl`. 이미 받은 날은 건너뛴다(끊겨도 이어서 받게)
+- [x] 시험 수집: 한 종목 한 달치. 건수 · 중복 · 날짜를 눈으로 확인
+- [ ] `task data:backfill` 로 전체 수집 (다섯 종목, 2022-01 ~ 어제) — **진행 중** (11/19 시작, 별도 창에서 `task data:news`). 속도와 이어받기는 [COLLECTION.md](COLLECTION.md) 3절
+- [x] `collect/check.py` + `task data:check` — 빈 날 비율, 중복, 날짜 범위, 종목 누락
+- [ ] `task data:daily` — 어제 ~ 오늘만 수집해 `data/incoming/` 에 둔다 (태스크는 있다. 과거 수집이 끝난 뒤 실행해 본다)
 
 끝났다는 기준: `task data:check` 가 다섯 종목 모두 통과한다.
 
@@ -43,6 +43,7 @@
 ## 2단계 — 학습표와 특징 (11/19 목)
 
 - [ ] `config/lexicon.yml` — 호재 · 악재 단어, 한국어와 영어 각각 20~30개
+- [x] `features/match.py` — 기업명 · 대표 · 대표 상품 · 계열사 언급 판정 (COLLECTION.md 4절), 테스트 20개
 - [ ] `features/build.py` — 헤드라인 묶음 → 특징 (언급 유형, 건수, 어휘, 달력, 종목). 학습과 API 가 함께 쓴다
 - [ ] `training/dataset.py` — 헤드라인을 거래일에 묶고(주말 · 공휴일은 직전 거래일), 시장 대비 다음 거래일 수익률로 정답을 붙인다
 - [ ] 테스트: 토요일 기사가 금요일 행에 묶이는지, 정답이 비교 지수를 빼고 계산되는지, 정답이 없는 마지막 행이 학습에서 빠지는지

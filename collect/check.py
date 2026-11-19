@@ -8,7 +8,7 @@
 - 중복: 같은 (제목, 매체)가 두 번 들어 있지 않은가
 - 날짜: date 가 YYYY-MM-DD 이고 미래가 아닌가
 - 주가: 종목 · 지수의 종가 파일이 있고, 마지막 날짜가 7일 안쪽인가
-인정 비율과 기업명 · 대표 · 대표 상품 언급 건수는 참고로 보여 준다 (실패 조건은 아니다).
+인정 비율과 기업명 · 대표 · 대표 상품 · 계열사 언급 건수는 참고로 보여 준다 (실패 조건은 아니다).
 """
 import argparse
 import csv
@@ -33,7 +33,7 @@ def main() -> None:
     tickers = load_tickers()
     problems: list[str] = []
 
-    print(f"{'종목':<10}{'헤드라인':>8}{'인정':>7}{'기업명':>7}{'대표':>6}{'상품':>6}{'조회한 날':>9}  기간")
+    print(f"{'종목':<10}{'헤드라인':>8}{'인정':>7}{'기업명':>7}{'대표':>6}{'상품':>6}{'계열사':>6}{'조회한 날':>9}  기간")
     for slug, t in tickers.items():
         rows, seen, dup = [], set(), 0
         for f in sorted((root / "news" / slug).glob("*.jsonl")):
@@ -60,7 +60,7 @@ def main() -> None:
         about = sum(any(k.values()) for k in kinds)
         n = {kind: sum(k[kind] for k in kinds) for kind in KINDS}
         print(
-            f"{slug:<10}{len(rows):>8}{about / len(rows):>7.0%}{n['name']:>7}{n['people']:>6}{n['products']:>6}"
+            f"{slug:<10}{len(rows):>8}{about / len(rows):>7.0%}{n['name']:>7}{n['people']:>6}{n['products']:>6}{n['affiliates']:>6}"
             f"{n_done:>9}  {dates[0]} ~ {dates[-1]}"
         )
 
