@@ -3,15 +3,20 @@
 #   code       주가 코드 (FinanceDataReader)
 #   benchmark  비교 지수 — 정답은 "이 지수보다 더 올랐는가"
 #   timezone   기사 날짜를 세는 기준 (그 시장의 현지 날짜)
-#   news       Google 뉴스 RSS 검색어와 언어 · 지역
+#   bigkinds   빅카인즈 검색에 넣는 기업명 낱말. 실제 검색어는 names + people + products 를 OR 로 이은 것이다
+#              unless: {낱말: 말} 은 그 낱말을 "말"이 본문에 없을 때만 받게 한다 → (…) OR (낱말 NOT 말)
+#              → `task data:bigkinds:query` 가 만들어 보여 준다. 기준은 docs/COLLECTION.md 6절
 #   match      기업명 패턴 (정규식, 대소문자 무시)
 #   affiliates 계열사. 기업명과는 다른 특징으로 따로 센다 (제목에서 먼저 지우고 나머지로 기업명을 본다)
 #   exclude    섞여 들어오는 무관한 말. 제목에서 지우기만 하고 세지 않는다
 #   인정 규칙은 features/match.py — 기업명 · 대표 · 대표 상품 · 계열사를 따로 센다
 #   people     대표 · 창업자 등 회사를 대표하는 사람
 #   products   대표 상품 · 서비스 · 아티스트
+#   people_with_name    같은 이름의 다른 사람이 많거나 그룹 전체 기사에 나오는 사람. 제목에 기업명이 함께 있을 때만 대표로 센다 (빅카인즈 검색어에는 넣지 않는다)
+#   products_with_name  다른 회사도 쓰는 말. 제목에 기업명이 함께 있을 때만 대표 상품으로 센다 (빅카인즈 검색어에는 넣지 않는다)
 #
-# 애플 · SM 의 대표는 2026-11-18 에 기사로 확인했다. 나머지 people · products 는 초안이다.
+# SM 의 대표는 2026-11-18, 하이브 · SK하이닉스의 대표는 2026-11-19 에 기사로 확인했다. 나머지 people · products 는 초안이다.
+# 2026-11-19: 애플 · 엔비디아를 빼고 하이브 · SK하이닉스를 넣었다 (무료 출처로 미국 과거 헤드라인을 고르게 받을 수 없었다. docs/TROUBLES.md)
 tickers:
   samsung:
     name: 삼성전자
@@ -19,12 +24,16 @@ tickers:
     market: KOSPI
     benchmark: KS11
     timezone: Asia/Seoul
-    news: {query: "삼성전자", hl: ko, gl: KR}
+    # "삼성"만으로는 검색하지 않는다 (그룹 전체 기사가 딸려 온다). 제목에 "삼성"만 있는 기사는 match 가 인정한다
+    bigkinds: {names: ["삼성전자", "삼전"]}
     match: ["삼성전자", "삼전", "삼성"]
     affiliates: ["삼성생명", "삼성화재", "삼성물산", "삼성바이오", "삼성SDI", "삼성SDS", "삼성전기", "삼성증권", "삼성중공업", "삼성디스플레이"]
     exclude: ["삼성 라이온즈"]
-    people: ["이재용", "전영현", "노태문", "한종희"]
-    products: ["갤럭시", "HBM", "파운드리", "엑시노스", "비스포크"]
+    # 경계현은 반도체 부문장(2022 ~ 2024-05)
+    people: ["이재용", "전영현", "노태문", "한종희", "경계현"]
+    products: ["갤럭시", "엑시노스", "비스포크", "빅스비"]
+    # SK하이닉스 · TSMC 기사에도 나오는 말. 제목에 기업명(match)이 함께 있을 때만 대표 상품으로 센다
+    products_with_name: ["HBM", "파운드리"]
 
   kakao:
     name: 카카오
@@ -32,13 +41,17 @@ tickers:
     market: KOSPI
     benchmark: KS11
     timezone: Asia/Seoul
-    news: {query: "카카오", hl: ko, gl: KR}
-    match: ["카카오", "네카오"]
+    # 줄임말: 네카오(네이버 + 카카오), 네카라쿠배(네이버 · 카카오 · 라인 · 쿠팡 · 배민), 카톡, 카뱅, 카겜
+    # unless: "카카오톡"은 본문에 "제보"가 없을 때만 받는다 — 기사 끝의 제보 안내문("카카오톡 : @노컷뉴스")을 막는다.
+    #         넣지 않으면 2022-10 한 달이 18,695건, 넣으면 10,093건이다 (docs/COLLECTION.md 6.2.2)
+    bigkinds: {names: ["카카오", "네카오", "네카라쿠배"], unless: {"카카오톡": "제보"}}
+    match: ["카카오", "네카오", "네카라쿠배"]
     # 계열사는 기업명으로 세지 않고 따로 센다 (카카오뱅크 · 카카오페이 · 카카오게임즈는 별도 상장)
-    affiliates: ["카카오뱅크", "카뱅", "카카오페이", "카카오게임즈", "카카오모빌리티", "카카오엔터테인먼트", "카카오엔터",
+    affiliates: ["카카오뱅크", "카뱅", "카카오페이", "카카오게임즈", "카겜", "카카오모빌리티", "카카오엔터테인먼트", "카카오엔터",
                  "카카오스타일", "카카오헬스케어", "카카오픽코마", "카카오벤처스", "카카오엔터프라이즈"]
     exclude: ["카카오 원두", "카카오 함량", "카카오닙스", "카카오나무", "카카오 가격"]
-    people: ["정신아", "김범수", "홍은택"]
+    # 여민수 · 조수용 공동대표(~2022-03) → 남궁훈(2022-03 ~ 10) → 홍은택 → 정신아(2024-03~). 김범수는 창업자
+    people: ["정신아", "김범수", "홍은택", "남궁훈", "여민수", "조수용"]
     products: ["카카오톡", "카톡", "카카오맵", "카나나"]
 
   sm:
@@ -47,35 +60,54 @@ tickers:
     market: KOSDAQ
     benchmark: KQ11
     timezone: Asia/Seoul
-    news: {query: "SM엔터테인먼트 OR SM엔터 OR 에스엠엔터", hl: ko, gl: KR}
+    # "SM" 만으로는 검색하지 않는다 (SM그룹 등 다른 회사가 딸려 온다)
+    bigkinds: {names: ["SM엔터테인먼트", "SM엔터", "에스엠엔터테인먼트", "에스엠엔터"]}
     match: ["SM엔터", "에스엠엔터", "(?<![A-Za-z])SM(?![A-Za-z])", "에스엠"]
     affiliates: ["SM C&C", "디어유", "SM라이프디자인"]
-    exclude: ["SM그룹", "SM상선", "SM벡셀", "SM우방", "에스엠투네트웍스", "에스엠코어", "에스엠씨"]
+    # 아티스트 이름이 다른 말 속에 들어 있는 경우도 지운다 (서프라이즈 · 엔터프라이즈 ⊃ 라이즈, 엑소좀 ⊃ 엑소, 에스파냐 ⊃ 에스파)
+    exclude: ["SM그룹", "SM상선", "SM벡셀", "SM우방", "에스엠투네트웍스", "에스엠코어", "에스엠씨",
+              "서프라이즈", "선라이즈", "엔터프라이즈", "엑소좀", "엑소더스", "엑소시스트", "엑소스켈레톤", "에스파냐", "에스파뇰"]
     # 이성수 · 탁영준 공동대표(~2023-03) → 장철혁(2023-03~) → 탁영준 · 장철혁 공동대표(2026-01 기사 기준). 이수만은 창업자
     people: ["이수만", "장철혁", "탁영준", "이성수"]
-    products: ["에스파", "aespa", "NCT", "라이즈", "RIIZE", "레드벨벳", "샤이니", "엑소", "EXO", "동방신기"]
+    # 아티스트는 그룹 이름만 넣는다 (멤버 개인 이름은 넣지 않는다). 한글 · 영문 표기를 둘 다 넣는다
+    products: ["에스파", "aespa", "NCT", "엔시티", "라이즈", "RIIZE", "레드벨벳", "샤이니", "엑소", "EXO", "동방신기",
+               "슈퍼주니어", "슈주", "소녀시대", "웨이션브이", "WayV", "하츠투하츠", "Hearts2Hearts"]
 
-  apple:
-    name: Apple
-    code: "AAPL"
-    market: NASDAQ
-    benchmark: IXIC
-    timezone: America/New_York
-    news: {query: "Apple AAPL OR iPhone OR \"Tim Cook\"", hl: en, gl: US}
-    match: ["Apple", "AAPL"]
-    exclude: ["apple pie", "apple cider", "Applebee"]
-    # Tim Cook 대표(~2026-08-31, 이후 이사회 의장) → John Ternus 대표(2026-09-01~)
-    people: ["Tim Cook", "John Ternus", "Jeff Williams", "Craig Federighi"]
-    products: ["iPhone", "iPad", "Mac", "Apple Watch", "AirPods", "Vision Pro", "App Store", "Apple Intelligence"]
+  hybe:
+    name: 하이브
+    code: "352820"
+    market: KOSPI
+    benchmark: KS11
+    timezone: Asia/Seoul
+    bigkinds: {names: ["하이브", "HYBE"]}
+    match: ["하이브", "HYBE"]
+    # 레이블(자회사). 어도어 · 뉴진스 분쟁처럼 레이블 기사가 본사 주가에 미치는 영향을 따로 본다
+    affiliates: ["어도어", "ADOR", "빅히트뮤직", "빅히트", "플레디스", "쏘스뮤직", "빌리프랩", "KOZ"]
+    # "하이브"가 다른 말 속에 들어 있는 경우를 지운다
+    exclude: ["하이브리드", "하이브로", "비하이브"]
+    # 방시혁은 창업자 · 의장. 대표: 박지원(2021-07 ~ 2024) → 이재상(2024 ~, 2026-01 신년사 기사로 확인)
+    # 민희진은 어도어 전 대표 (2024년 하이브와 경영권 분쟁)
+    people: ["방시혁", "이재상", "민희진"]
+    # 같은 이름의 정치인 기사가 훨씬 많다. 제목에 기업명이 함께 있을 때만 대표로 센다
+    people_with_name: ["박지원"]
+    # 아티스트는 그룹 이름만 넣는다. 위버스는 팬 플랫폼
+    products: ["BTS", "방탄소년단", "세븐틴", "투모로우바이투게더", "TXT", "르세라핌", "뉴진스", "NewJeans",
+               "엔하이픈", "아일릿", "캣츠아이", "위버스"]
 
-  nvidia:
-    name: Nvidia
-    code: "NVDA"
-    market: NASDAQ
-    benchmark: IXIC
-    timezone: America/New_York
-    news: {query: "Nvidia", hl: en, gl: US}
-    match: ["Nvidia", "NVDA"]
+  skhynix:
+    name: SK하이닉스
+    code: "000660"
+    market: KOSPI
+    benchmark: KS11
+    timezone: Asia/Seoul
+    bigkinds: {names: ["SK하이닉스", "하이닉스", "에스케이하이닉스", "하닉"]}
+    match: ["하이닉스", "하닉"]
+    affiliates: ["솔리다임", "키파운드리", "SK하이닉스시스템IC"]
     exclude: []
-    people: ["Jensen Huang"]
-    products: ["GeForce", "RTX", "Blackwell", "Rubin", "H100", "CUDA", "DGX"]
+    # 박정호 · 곽노정 각자대표(2022-03 ~) → 곽노정 단독(2024 ~, 2026-10 그룹 인사에서 유임 기사로 확인)
+    people: ["곽노정", "박정호"]
+    # 최태원은 SK그룹 회장 — 그룹 전체 · 개인 기사가 딸려 온다. 제목에 기업명이 함께 있을 때만 대표로 센다
+    people_with_name: ["최태원"]
+    products: []
+    # 삼성전자 · 마이크론 기사에도 나오는 말. 제목에 기업명이 함께 있을 때만 대표 상품으로 센다
+    products_with_name: ["HBM", "D램", "낸드"]

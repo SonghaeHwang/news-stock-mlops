@@ -32,9 +32,19 @@
 - [x] `collect/prices.py` — 다섯 종목과 지수 세 개의 일별 종가 → `data/prices/<코드>.csv`
 - [x] `collect/news.py` — 종목 · 날짜 범위를 받아 하루 단위로 조회 → `data/news/<종목>/<YYYY-MM>.jsonl`. 이미 받은 날은 건너뛴다(끊겨도 이어서 받게)
 - [x] 시험 수집: 한 종목 한 달치. 건수 · 중복 · 날짜를 눈으로 확인
-- [ ] `task data:backfill` 로 전체 수집 (다섯 종목, 2022-01 ~ 어제) — **진행 중** (11/19 시작, 별도 창에서 `task data:news`). 속도와 이어받기는 [COLLECTION.md](COLLECTION.md) 3절
+- [x] ~~미국 종목(애플 · 엔비디아) 전체 수집~~ — 11/19 에 두 종목을 하이브 · SK하이닉스로 바꿨다 (받은 데이터는 지웠다). 아래는 그 전의 기록: `task data:news` (Google, 2022-01 ~ 어제) — 멈춰 있다 (11/19 기준 134일치, 2024-06 ~ 2026-11 일부). 다시 치면 이어서 받는다. 속도와 이어받기는 [COLLECTION.md](COLLECTION.md) 3절
 - [x] `collect/check.py` + `task data:check` — 빈 날 비율, 중복, 날짜 범위, 종목 누락
-- [ ] `task data:daily` — 어제 ~ 오늘만 수집해 `data/incoming/` 에 둔다 (태스크는 있다. 과거 수집이 끝난 뒤 실행해 본다)
+- [x] ~~`task data:daily`~~ — 11/19 에 뺐다. 헤드라인은 Google 을 쓰지 않고 빅카인즈만 쓴다 (이유는 [TROUBLES.md](TROUBLES.md) 마지막 절). 그 전의 기록: 어제 ~ 오늘만 Google 에서 수집해 `data/incoming/` 에 둔다. 태스크와 `collect/news.py` 를 지울지는 정하지 않았다
+
+다섯 종목(삼성전자 · 카카오 · SM · 하이브 · SK하이닉스) 모두 빅카인즈에서 받는다 (11/19 변경). 기준은 [COLLECTION.md](COLLECTION.md) 6절.
+
+- [x] 검색어 조건 (기업명 · 줄임말 + 대표 + 대표 상품 · 아티스트) — `task data:bigkinds:query`
+- [x] `collect/bigkinds.py` + `task data:bigkinds` — 엑셀 → `data/news/<종목>/<YYYY-MM>.jsonl`, 제목이 그 종목 기사인 것만 저장
+- [x] 검색 건수 확인: OR · NOT · 긴 검색어가 되는지, 종목별 한 달 건수
+- [x] `[직접]` 첫 내려받기 한 건(카카오 2022-10)으로 확인: 화면 검색 건수 10,093 = 파일 행 수 10,093, 한도는 20,000건 (11/19, Aside 로 내려받음)
+- [ ] `[직접]` 전체 내려받기: 5종목 × 59개월 = 295개 파일 (하이브 · SK하이닉스는 11/19 추가) → `data/raw/bigkinds/<종목>_<시작일>-<끝일>.xlsx`
+- [ ] `task data:bigkinds` 로 변환, `task data:check` 로 검사
+- [ ] 새 데이터를 넣는 방법을 정한다: 사람이 빅카인즈 엑셀을 내려받아 넣는 것이 시작점이다. `model.yml` 을 무엇으로 시작시킬지(수동 실행 / 새 파일 올리기 등)는 미정 — 7단계 전까지
 
 끝났다는 기준: `task data:check` 가 다섯 종목 모두 통과한다.
 
@@ -97,14 +107,14 @@
 - [ ] 과거 수집분을 서버로 옮겨 `task data:store` 로 버킷에 올린다 (버킷은 서버만 만진다)
 - [ ] `deploy/lightsail/models.py` — `promote`, `rollback`. 띄워서 확인한 뒤에 포인터를 바꾼다
 - [ ] `task data:store`, `task data:fetch`, `task deploy:promote`
-- [ ] `.github/workflows/model.yml` — collect → store → train → promote, 수동 실행으로 먼저 확인
+- [ ] `.github/workflows/model.yml` — collect(새 빅카인즈 엑셀 변환 · 주가 · 검사) → store → train → promote, 수동 실행으로 먼저 확인. 무엇으로 시작시킬지는 미정
 - [ ] 첫 승격: `/health` 의 `model_version` 이 새 버전으로 바뀌는지 확인
 
 끝났다는 기준: `model.yml` 을 수동 실행하면 버킷에 새 데이터와 새 모델 버전이 생기고 서버가 그 버전으로 답한다. (요건 3 · 4)
 
 ## 8단계 — 예약 재학습 · 롤백 · 시연 준비 (11/22 일)
 
-- [ ] `model.yml` 에 예약 실행 추가 (평일 아침 1회), 다음 날 실제로 돌았는지 확인
+- [ ] `model.yml` 의 시작 방법을 정해 붙이고(7단계에서 정한 것), 새 엑셀을 넣었을 때 실제로 도는지 확인. 그 전의 기록: 예약 실행(평일 아침 1회) — Google 매일 수집을 뺀 뒤로는 예약 실행이 받아 올 새 데이터가 없다
 - [ ] `.github/workflows/rollback.yml` + `task deploy:rollback`
 - [ ] 롤백 실행: 이전 버전으로 되돌리고 `/health` 로 확인
 - [ ] 탈락 실행: 게이트에서 멈춰 promote Job 이 돌지 않는 실행 기록을 하나 남긴다

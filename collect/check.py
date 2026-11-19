@@ -5,7 +5,7 @@
 
 보는 것
 - 종목 누락: tickers.yml 의 종목마다 헤드라인이 한 건 이상 있는가
-- 중복: 같은 (제목, 매체)가 두 번 들어 있지 않은가
+- 중복: 같은 기사가 두 번 들어 있지 않은가 (빅카인즈의 뉴스 식별자로 본다)
 - 날짜: date 가 YYYY-MM-DD 이고 미래가 아닌가
 - 주가: 종목 · 지수의 종가 파일이 있고, 마지막 날짜가 7일 안쪽인가
 인정 비율과 기업명 · 대표 · 대표 상품 · 계열사 언급 건수는 참고로 보여 준다 (실패 조건은 아니다).
@@ -33,19 +33,17 @@ def main() -> None:
     tickers = load_tickers()
     problems: list[str] = []
 
-    print(f"{'종목':<10}{'헤드라인':>8}{'인정':>7}{'기업명':>7}{'대표':>6}{'상품':>6}{'계열사':>6}{'조회한 날':>9}  기간")
+    print(f"{'종목':<10}{'헤드라인':>8}{'인정':>7}{'기업명':>7}{'대표':>6}{'상품':>6}{'계열사':>6}  기간")
     for slug, t in tickers.items():
         rows, seen, dup = [], set(), 0
         for f in sorted((root / "news" / slug).glob("*.jsonl")):
             with open(f, encoding="utf-8") as fh:
                 for line in fh:
                     r = json.loads(line)
-                    key = (r["title"], r["source"])
+                    key = r["id"]  # 빅카인즈의 뉴스 식별자
                     dup += key in seen
                     seen.add(key)
                     rows.append(r)
-        done = root / "news" / slug / "_done.txt"
-        n_done = len(done.read_text(encoding="utf-8").split()) if done.exists() else 0
         if not rows:
             problems.append(f"{slug}: 헤드라인이 없다")
             print(f"{slug:<10}{0:>8}")
@@ -61,7 +59,7 @@ def main() -> None:
         n = {kind: sum(k[kind] for k in kinds) for kind in KINDS}
         print(
             f"{slug:<10}{len(rows):>8}{about / len(rows):>7.0%}{n['name']:>7}{n['people']:>6}{n['products']:>6}{n['affiliates']:>6}"
-            f"{n_done:>9}  {dates[0]} ~ {dates[-1]}"
+            f"  {dates[0]} ~ {dates[-1]}"
         )
 
     for code in price_codes(tickers):

@@ -10,6 +10,10 @@
    products  대표 상품 · 서비스 · 아티스트
    name      기업명 (match 의 정규식). 대표 상품의 말까지 지운 뒤에 본다
              → "카카오톡 개편" 은 대표 상품 언급이지 기업명 언급이 아니다.
+   products_with_name  여러 회사가 함께 쓰는 말(HBM, 파운드리). 기업명이 같은 제목에 있을 때만 대표 상품으로 센다
+             → "SK하이닉스, HBM 공급 확대" 는 삼성전자 기사가 아니다. "삼성전자, HBM 공급 확대" 는 기업명이면서 대표 상품이다.
+   people_with_name  같은 이름의 다른 사람이 많거나(박지원) 그룹 전체 기사에 나오는 사람(최태원). 기업명이 같은 제목에 있을 때만 대표로 센다
+             → "박지원 의원, 국정감사 발언" 은 하이브 기사가 아니다. "하이브 박지원 대표 사임" 은 기업명이면서 대표다.
 4. 넷(name · people · products · affiliates) 중 하나라도 있으면 그 종목 기사로 인정한다.
    넷은 서로 다른 특징으로 센다.
 
@@ -40,10 +44,13 @@ def strip_excluded(title: str, t: dict) -> str:
 def classify(title: str, t: dict) -> dict[str, bool]:
     """{"name": 기업명, "people": 대표, "products": 대표 상품, "affiliates": 계열사} 언급 여부"""
     rest = strip_excluded(title, t)
+    name = any(re.search(pat, _strip(rest, t.get("products", [])), re.IGNORECASE) for pat in t["match"])
     return {
-        "name": any(re.search(pat, _strip(rest, t.get("products", [])), re.IGNORECASE) for pat in t["match"]),
-        "people": any(_has(x, rest) for x in t.get("people", [])),
-        "products": any(_has(x, rest) for x in t.get("products", [])),
+        "name": name,
+        "people": any(_has(x, rest) for x in t.get("people", []))
+        or (name and any(_has(x, rest) for x in t.get("people_with_name", []))),
+        "products": any(_has(x, rest) for x in t.get("products", []))
+        or (name and any(_has(x, rest) for x in t.get("products_with_name", []))),
         "affiliates": any(_has(x, title) for x in t.get("affiliates", [])),
     }
 

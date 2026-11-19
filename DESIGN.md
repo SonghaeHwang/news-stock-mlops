@@ -24,8 +24,10 @@
 | 삼성전자 | 005930 | 코스피 | KS11 | 한국어 |
 | 카카오 | 035720 | 코스피 | KS11 | 한국어 |
 | SM엔터테인먼트 | 041510 | 코스닥 | KQ11 | 한국어 |
-| 애플 | AAPL | 나스닥 | IXIC | 영어 |
-| 엔비디아 | NVDA | 나스닥 | IXIC | 영어 |
+| 하이브 | 352820 | 코스피 | KS11 | 한국어 |
+| SK하이닉스 | 000660 | 코스피 | KS11 | 한국어 |
+
+> 2026-11-19 변경: 애플 · 엔비디아를 빼고 하이브 · SK하이닉스를 넣었다. 무료 출처로는 미국 종목의 과거 헤드라인을 한국 종목과 같은 밀도로 받을 수 없었다 ([docs/TROUBLES.md](docs/TROUBLES.md)). 다섯 종목 모두 헤드라인은 빅카인즈에서 받는다.
 
 종목마다 적는 것: 코드, 시장, 비교 지수, 검색어, 언어, 기업명 별칭, 대표 이름(재임 기간 포함), 대표 상품.
 
@@ -34,7 +36,7 @@
 - **행**: (종목, 거래일 T) 하나.
 - **입력**: 날짜가 T 이상이고 다음 거래일 미만인 헤드라인 전부. 토 · 일 · 공휴일 기사는 직전 거래일 T 에 묶인다.
 - **정답**: `(T+1 종가 / T 종가 − 1) − (같은 기간 비교 지수 수익률) > 0` 이면 1.
-- 날짜는 그 시장의 현지 날짜로 센다 (한국 종목은 KST, 미국 종목은 미국 동부).
+- 날짜는 그 시장의 현지 날짜로 센다 (다섯 종목 모두 KST).
 - 근거가 된 사례: 2022-10-15(토) 카카오 장애 → 10-17(월) 카카오 −5.93%, 코스피 +0.32%. 11-11 의 +15.55% 는 코스피도 +3.37% 인 날이라 시장 대비로 재야 한다.
 
 ### 2.3 특징 (뉴스만 쓴다)
@@ -81,8 +83,9 @@
 |---|---|---|
 | `setup` | `uv sync` | 로컬 · GitHub |
 | `test` | pytest (특징 · API · 게이트 판정) | 로컬 · GitHub |
-| `data:backfill` | 과거 헤드라인 · 주가를 한 번에 수집 | 로컬 (1회) |
-| `data:daily` | 어제~오늘 헤드라인과 주가 수집 → `data/incoming/` | GitHub |
+| `data:bigkinds` | 사람이 내려받아 넣은 빅카인즈 엑셀 → 헤드라인 파일 (제목으로 거른다) | 로컬 · (자동 흐름에서 어디서 돌릴지 미정) |
+| `data:prices` | 종목 · 지수의 일별 종가 | 로컬 · GitHub |
+| ~~`data:daily`~~ | (그 전의 기록) Google 에서 어제~오늘 헤드라인 수집 → `data/incoming/`. 11/19 에 헤드라인은 Google 을 쓰지 않기로 해 흐름에서 뺐다 | — |
 | `data:check` | 수집분 검사 (빈 날, 중복, 날짜 범위, 종목 누락) | GitHub |
 | `data:store` | `data/incoming/` 을 버킷에 올린다 | 서버 |
 | `data:fetch` | 버킷의 전체 데이터와 현재 모델을 받는다 | 서버 |
@@ -113,10 +116,16 @@ v* 태그 ─────── test → image (GitHub) : task api:image → GHC
 
 ### 4.2 모델 배포 — `model.yml`
 
-평일 아침 1회 예약 실행 (미국 장 마감 뒤, 한국 시간 07시대) + 수동 실행.
+**새 데이터의 시작점은 사람이다** (2026-11-19 변경): 사람이 빅카인즈 엑셀을 내려받아 정해진 폴더(`data/raw/bigkinds/`)에 넣는다.
+그 뒤 변환 → 데이터 검사 → 학습 → 게이트 → parity → 배포가 자동이다. 교안 요건 "새로운 데이터에 대해 자동화된 학습과 모델 검증"은 이 구간으로 채운다.
+
+**`model.yml` 을 무엇으로 시작시킬지는 정하지 않았다** (수동 실행 / 새 파일 올리기 등). 아래 collect Job 의 세부도 그 결정에 따라 바뀐다.
+
+> 그 전의 기록: 평일 아침 1회 예약 실행으로 collect Job 이 Google 뉴스에서 어제~오늘 헤드라인을 받는(`task data:daily`) 흐름이었다.
+> 헤드라인은 Google 을 쓰지 않기로 해 뺐다. 이유: 출처가 바뀌는 경계가 게이트의 검증 구간(최근 60거래일)과 겹치고, 건수 기준(빅카인즈 평일 40~70건, Google 최근 약 100건) · 매체 구성 · 중복 비율이 달라 모델이 출처 차이를 "평소보다 기사가 많다"로 잘못 배울 수 있다 (TROUBLES.md).
 
 ```
-collect (GitHub) : task data:daily → task data:check        새 데이터 수집
+collect (미정)   : 새 빅카인즈 엑셀 → task data:bigkinds → task data:prices → task data:check
    │ artifact: incoming
 store   (서버)   : task data:store → task data:fetch        버킷 적재 후 전체를 내려받음
    │ artifact: dataset + 현재 모델
@@ -153,7 +162,7 @@ promote (서버)   : task deploy:promote                      버킷에 새 버�
 ### 5.1 버킷
 
 ```
-data/news/<종목>/<YYYY-MM>.jsonl     헤드라인 {date, title, source}
+data/news/<종목>/<YYYY-MM>.jsonl     헤드라인 {date, published, title, source} — 국내 종목(빅카인즈)은 id · flag 가 더 있다
 data/prices/<코드>.csv               종목 · 지수 일별 종가
 models/<버전>/model.onnx            버전마다 폴더 하나, 올린 뒤 고치지 않는다
 models/<버전>/model.json            모델 카드
@@ -186,7 +195,7 @@ models/current.json                 포인터 — 지금 서비스 중인 버전
 ```
 Taskfile.yml
 config/tickers.yml  lexicon.yml
-collect/            news.py  prices.py  check.py
+collect/            news.py (미국 종목, Google)  bigkinds.py (국내 종목, 빅카인즈 엑셀 변환)  prices.py  check.py
 features/           build.py            (학습 · API 공용)
 training/           dataset.py  train.py  gate.py  export_onnx.py  parity.py  card.py
 api/                app.py  predictors/  Dockerfile  tests/
@@ -210,6 +219,7 @@ deploy/lightsail/   compose.yml  server.sh  models.py  bootstrap.sh
 | 위험 | 대비 |
 |---|---|
 | 과거 수집이 대량 조회에서 막힌다 (다섯 종목 × 약 1,780일 = 약 8,900회, 2022-01 부터) | 로컬에서 4~6초 간격으로 수집, 끊겨도 이어받는다. 계속 막히면 기간을 2025-01 이후로 줄인다 |
+| (2026-11-19 추가) 헤드라인 출처를 빅카인즈 하나로 했다. 빅카인즈는 사람이 엑셀을 내려받아야 해서 새 데이터가 저절로 들어오지 않는다 | 새 데이터의 시작점을 "사람이 엑셀을 넣는다"로 두고 그 뒤를 자동화한다 (4.2). `model.yml` 을 무엇으로 시작시킬지는 7단계 전에 정한다 |
 | 미국 종목의 헤드라인이 하루 1건뿐인 날이 많다 | 건수가 0인 날도 행으로 둔다. 검색어를 넓혀 본다 |
 | 모델이 기준선을 못 넘어 승격이 한 번도 안 된다 | 첫 버전은 과거 데이터로 로컬에서 게이트를 통과시켜 올린다. 탈락 시연은 학습을 일부러 덜 시켜 만든다 |
 | Job 네 개가 서버와 GitHub 를 오가서 시간이 부족하다 | 버킷 접근 키를 Secrets 에 넣고 Job 두 개(train · promote)로 줄인다. 키 없는 원칙을 포기하는 대안이다 |
@@ -223,12 +233,12 @@ deploy/lightsail/   compose.yml  server.sh  models.py  bootstrap.sh
 | 11/19(목) | 특징 · 학습 · 게이트 · ONNX · parity | 로컬에서 `task model` 통과 |
 | 11/20(금) | API · Dockerfile · 테스트 · `ci.yml` | 태그를 밀면 GHCR 에 이미지가 생긴다 |
 | 11/21(토) | Lightsail 인스턴스 · 버킷 · 러너, `deploy:*` | 서버 `/health` 응답, 첫 모델 승격 |
-| 11/22(일) | `model.yml` 예약 실행, `rollback.yml`, 탈락 시연 | 승격 · 탈락 · 롤백을 한 번씩 실행 |
+| 11/22(일) | `model.yml` 시작 방법(미정) 붙이기, `rollback.yml`, 탈락 시연 | 승격 · 탈락 · 롤백을 한 번씩 실행 |
 | 11/23(월) | 발표 자료 · 리허설 | 5분 안에 끝난다 |
 
 ## 9. 발표에 담을 것
 
 - 설계 이유: 왜 다음 거래일인가, 왜 시장 대비인가 (카카오 사례 표).
 - Flow: 코드의 길과 모델의 길, 버킷을 서버만 만지는 이유.
-- 개선한 점: 태스크 러너로 로컬 = CI = 서버, 실제 새 데이터로 매일 재학습, 현재 모델과 비교하는 게이트.
+- 개선한 점: 태스크 러너로 로컬 = CI = 서버, 새 데이터(빅카인즈 엑셀)를 넣으면 그 뒤가 자동으로 도는 재학습, 현재 모델과 비교하는 게이트.
 - AI 에게 제공한다면: `/predict` 를 도구로 감싸 에이전트가 헤드라인을 넣고 확률을 받게 한다 (선택).
