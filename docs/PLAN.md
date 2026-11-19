@@ -58,7 +58,7 @@
 - [ ] `features/build.py` — 헤드라인 묶음 → 특징 (언급 유형, 건수, 어휘, 달력, 종목). 학습과 API 가 함께 쓴다
 - [ ] `training/dataset.py` — 헤드라인을 거래일에 묶고(주말 · 공휴일은 직전 거래일), 시장 대비 다음 거래일 수익률로 정답을 붙인다
 - [ ] 테스트: 토요일 기사가 금요일 행에 묶이는지, 정답이 비교 지수를 빼고 계산되는지, 정답이 없는 마지막 행이 학습에서 빠지는지
-- [ ] `task model:features` → `artifacts/dataset.parquet`, 행 수와 정답 비율 출력
+- [ ] `task model:features` → `artifacts/dataset.csv`, 행 수와 정답 비율 출력
 
 끝났다는 기준: `task test` 통과, 학습표의 종목별 행 수와 정답 비율(50% 근처)을 확인했다.
 
@@ -108,14 +108,14 @@
 - [ ] 과거 수집분을 서버로 옮겨 `task data:store` 로 버킷에 올린다 (버킷은 서버만 만진다)
 - [ ] `deploy/lightsail/models.py` — `promote`, `rollback`. 띄워서 확인한 뒤에 포인터를 바꾼다
 - [ ] `task data:store`, `task data:fetch`, `task deploy:promote`
-- [ ] `.github/workflows/model.yml` — collect(새 빅카인즈 엑셀 변환 · 주가 · 검사) → store → train → promote, 수동 실행으로 먼저 확인. 무엇으로 시작시킬지는 미정
+- [ ] `.github/workflows/model.yml` — collect(새 빅카인즈 엑셀 변환 · 주가 · 검사) → store → train → promote, 수동 실행으로 먼저 확인. 시작 방법은 `dataset/` 이 바뀐 커밋 푸시 (47행, 11/19 정함)
 - [ ] 첫 승격: `/health` 의 `model_version` 이 새 버전으로 바뀌는지 확인
 
 끝났다는 기준: `model.yml` 을 수동 실행하면 버킷에 새 데이터와 새 모델 버전이 생기고 서버가 그 버전으로 답한다. (요건 3 · 4)
 
 ## 8단계 — 예약 재학습 · 롤백 · 시연 준비 (11/22 일)
 
-- [ ] `model.yml` 의 시작 방법을 정해 붙이고(7단계에서 정한 것), 새 엑셀을 넣었을 때 실제로 도는지 확인. 그 전의 기록: 예약 실행(평일 아침 1회) — Google 매일 수집을 뺀 뒤로는 예약 실행이 받아 올 새 데이터가 없다
+- [ ] 새 엑셀을 `data/raw/bigkinds/` 에 넣으면 `task data:submit`(또는 `data:watch`)이 `dataset/` 을 푸시하고, 그 푸시로 `model.yml` 이 GitHub 에서 실제로 도는지 확인 (시작 방법은 47행, 11/19 정함). 그 전의 기록: 예약 실행(평일 아침 1회) — Google 매일 수집을 뺀 뒤로는 예약 실행이 받아 올 새 데이터가 없다
 - [ ] `.github/workflows/rollback.yml` + `task deploy:rollback`
 - [ ] 롤백 실행: 이전 버전으로 되돌리고 `/health` 로 확인
 - [ ] 탈락 실행: 게이트에서 멈춰 promote Job 이 돌지 않는 실행 기록을 하나 남긴다
