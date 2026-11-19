@@ -66,12 +66,14 @@ tasks:
       - uv run --locked --group collect python -m collect.check --dir {{.DIR | default "data"}}
 
   data:store:
-    desc: (7단계) data/incoming 을 버킷에 올린다 — 서버에서만
-    cmds: [{task: todo, vars: {WHAT: "data:store — PLAN 7단계"}}]
+    desc: 날짜별 건수(dataset/)를 버킷의 data/dataset/ 에 올린다 — 서버에서만 (MODEL_BUCKET)
+    cmds:
+      - python3 deploy/lightsail/models.py store {{.DATASET | default "dataset"}}
 
   data:fetch:
-    desc: (7단계) 버킷의 전체 데이터와 현재 모델을 받는다 — 서버에서만
-    cmds: [{task: todo, vars: {WHAT: "data:fetch — PLAN 7단계"}}]
+    desc: 지금 서비스 중인 모델을 버킷에서 artifacts/current 로 받는다 (게이트의 비교 대상) — 서버에서만
+    cmds:
+      - python3 deploy/lightsail/models.py current {{.CURRENT | default "artifacts/current"}}
 
   # ── 모델 ───────────────────────────────────────────────
   model:features:
@@ -115,37 +117,69 @@ tasks:
       - task: model:card
 
   # ── API ────────────────────────────────────────────────
+  # IMAGE 는 이미지 이름(레지스트리 경로 포함), TAG 는 v* 태그. CI 가 둘 다 넘긴다
   api:serve:
-    desc: (4단계) 로컬에서 API 실행
-    cmds: [{task: todo, vars: {WHAT: "api:serve — PLAN 4단계"}}]
+    desc: 로컬에서 API 를 띄운다 (8080). MODEL_DIR 기본값 artifacts — 모델이 없으면 기준선으로 답한다
+    env:
+      MODEL_DIR: '{{.MODEL_DIR | default "artifacts"}}'
+    cmds:
+      - uv run --locked --group api --group collect uvicorn api.app:app --port 8080
 
   api:image:
-    desc: (4단계) 이미지 빌드
-    cmds: [{task: todo, vars: {WHAT: "api:image — PLAN 4단계"}}]
+    desc: API 이미지를 만든다. IMAGE 기본값 news-api, TAG 기본값 dev (TAG 가 /health 의 app_version 이 된다)
+    cmds:
+      - docker build -f api/Dockerfile --build-arg APP_VERSION={{.TAG | default "dev"}} -t {{.IMAGE | default "news-api"}}:{{.TAG | default "dev"}} .
+
+  api:push:
+    desc: 만든 이미지를 레지스트리에 올린다 (docker login 은 미리) — CI 에서만
+    cmds:
+      - docker push {{.IMAGE | default "news-api"}}:{{.TAG | default "dev"}}
+
+  api:run:
+    desc: 만든 이미지를 로컬 컨테이너로 띄운다 (8080, artifacts/ 의 모델을 붙인다). 끄기는 docker rm -f news-api
+    cmds:
+      - cmd: docker rm -f news-api
+        ignore_error: true
+        silent: true
+      - docker run -d --name news-api -p 8080:8080 -v "{{.ROOT_DIR}}/artifacts:/models/local:ro" -e MODEL_DIR=/models/local {{.IMAGE | default "news-api"}}:{{.TAG | default "dev"}}
 
   api:smoke:
-    desc: (4단계) /health 와 /predict 를 한 번씩 부른다
-    cmds: [{task: todo, vars: {WHAT: "api:smoke — PLAN 4단계"}}]
+    desc: /health 와 /predict 를 한 번씩 부른다. URL 기본값 http://localhost:8080 — 응답이 오류면 종료 코드가 0 이 아니다
+    vars:
+      URL: '{{.URL | default "http://localhost:8080"}}'
+    cmds:
+      - curl -fsS --retry 10 --retry-delay 1 --retry-all-errors {{.URL}}/health
+      - echo
+      - 'curl -fsS -X POST {{.URL}}/predict -H "content-type: application/json" --data-binary @api/smoke.json'
+      - echo
 
   # ── 배포 (서버에서만) ──────────────────────────────────
+  deploy:bootstrap:
+    desc: 서버를 준비한다 (Docker · Task · /srv/news, RUNNER_URL · RUNNER_TOKEN 을 주면 러너 등록까지). 여러 번 돌려도 된다
+    cmds:
+      - bash deploy/lightsail/bootstrap.sh
+
   deploy:image:
-    desc: (6단계) 새 이미지 태그로 교체, 안 뜨면 이전 태그로
-    cmds: [{task: todo, vars: {WHAT: "deploy:image — PLAN 6단계"}}]
+    desc: 서버의 API 를 새 이미지(IMAGE:TAG)로 바꾼다. 안 뜨면 이전 태그로 돌아간다 (GHCR_TOKEN)
+    requires:
+      vars: [IMAGE, TAG]
+    cmds:
+      - bash deploy/lightsail/server.sh image {{.TAG}} {{.IMAGE}}
 
   deploy:promote:
-    desc: (7단계) 새 모델을 버킷에 올리고 띄운 뒤 포인터 변경
-    cmds: [{task: todo, vars: {WHAT: "deploy:promote — PLAN 7단계"}}]
+    desc: 통과한 모델(artifacts/)을 버킷에 새 버전으로 올리고, 띄워서 확인한 뒤 포인터를 바꾼다 (MODEL_BUCKET)
+    cmds:
+      - python3 deploy/lightsail/models.py promote {{.ART | default "artifacts"}}
 
   deploy:rollback:
-    desc: (8단계) VER 의 모델로 되돌린다
-    cmds: [{task: todo, vars: {WHAT: "deploy:rollback — PLAN 8단계"}}]
+    desc: 버킷에 있는 VER 의 모델로 되돌린다. 안 뜨면 원래 버전으로 돌아가고 포인터는 그대로다 (MODEL_BUCKET)
+    requires:
+      vars: [VER]
+    cmds:
+      - python3 deploy/lightsail/models.py rollback {{.VER}}
 
   deploy:status:
-    desc: (6단계) 서버의 이미지 태그 · 모델 버전 · /health
-    cmds: [{task: todo, vars: {WHAT: "deploy:status — PLAN 6단계"}}]
-
-  todo:
-    internal: true
-    silent: true
+    desc: 서버의 이미지 태그 · 모델 버전 · /health, 버킷의 모델 버전 목록과 포인터
     cmds:
-      - echo "아직 만들지 않았다 → {{.WHAT}}" && exit 1
+      - bash deploy/lightsail/server.sh status
+      - python3 deploy/lightsail/models.py list

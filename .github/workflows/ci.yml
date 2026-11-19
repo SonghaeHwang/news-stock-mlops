@@ -1,11 +1,17 @@
-# 코드가 바뀌면 테스트를 돌린다. (이미지 빌드와 서버 배포 Job 은 PLAN 5 · 6단계에서 붙인다)
+# 코드의 길: PR · main 은 테스트, v* 태그는 테스트 → 이미지(GHCR) → 서버.
+# 여기에는 로직을 적지 않는다. 각 Job 은 checkout → 설치 → `task <이름>` 이다.
 name: ci
 
 on:
   push:
     branches: [main]
+    tags: ["v*"]
     paths-ignore: ["dataset/**", "docs/**", "*.md"]
   pull_request:
+
+env:
+  IMAGE: ghcr.io/songhaehwang/news-stock-mlops/news-api # GHCR 은 소문자만 받는다
+  TAG: ${{ github.ref_name }}
 
 jobs:
   test:
@@ -17,3 +23,37 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - run: task test
+
+  image:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: arduino/setup-task@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: task api:image
+      - run: task api:push
+
+  # 내 서버(Lightsail)의 러너가 받는다. 새 이미지로 바꾸고, 안 뜨면 이전 태그로 돌아간다
+  deploy:
+    needs: image
+    runs-on: [self-hosted, lightsail]
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      - run: task deploy:image
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: task deploy:status

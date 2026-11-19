@@ -1,0 +1,10 @@
+# 이미지에 필요한 것은 Dockerfile 이 골라서 넣는다. 큰 폴더가 빌드 컨텍스트로 넘어가지 않게만 한다
+.git
+.venv
+.pytest_cache
+**/__pycache__
+data
+dataset
+artifacts
+docs
+tests

@@ -1,0 +1,14 @@
+# 서버의 바라는 상태는 /srv/news/.env 에 있다: IMAGE, TAG (코드), MODEL_VERSION, MODEL_DIR (모델)
+# 이 파일은 배포할 때마다 저장소의 것이 /srv/news/ 로 복사된다 (server.sh).
+name: news
+services:
+  api:
+    image: ${IMAGE}:${TAG}
+    restart: unless-stopped
+    ports:
+      - "80:8080" # 서버의 80 → 컨테이너의 8080
+    environment:
+      # 모델은 이미지에 굽지 않는다. 승격 전(.env 에 MODEL_DIR 이 없을 때)에는 빈 경로 → 기준선으로 답한다
+      MODEL_DIR: ${MODEL_DIR:-/models/none}
+    volumes:
+      - /srv/news/models:/models:ro

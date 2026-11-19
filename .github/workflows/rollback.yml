@@ -1,0 +1,23 @@
+# 모델을 버킷에 있는 이전 버전으로 되돌린다. 수동 실행, 입력은 모델 버전.
+# 학습 · 검사는 하지 않는다. 이미지는 건드리지 않는다. 안 뜨면 서버는 원래 버전으로 돌아가고 포인터는 그대로다.
+name: rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "되돌릴 모델 버전 (예: m20261121-3). 목록은 서버의 task deploy:status"
+        required: true
+
+env:
+  MODEL_BUCKET: ${{ vars.MODEL_BUCKET }}
+
+jobs:
+  rollback:
+    runs-on: [self-hosted, lightsail]
+    steps:
+      - uses: actions/checkout@v4
+      - run: task deploy:rollback
+        env:
+          VER: ${{ inputs.version }}
+      - run: task deploy:status
