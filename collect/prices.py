@@ -1,7 +1,7 @@
 """종목 · 지수의 일별 종가를 받는다.
 
     python -m collect.prices --out data            → data/prices/<코드>.csv
-    python -m collect.prices --out data --start 2023-01-01
+    python -m collect.prices --out data --start 2022-01-01
 
 매번 전체 기간을 다시 받아 덮어쓴다 (한 코드에 1천 행 남짓이라 가볍다).
 """
@@ -13,7 +13,7 @@ import FinanceDataReader as fdr
 
 from collect.config import load_tickers, price_codes
 
-DEFAULT_START = "2022-12-01"  # 헤드라인 시작(2023-01)보다 조금 앞에서 — 첫 거래일의 전일 종가가 필요하다
+DEFAULT_START = "2021-12-01"  # 헤드라인 시작(2022-01)보다 조금 앞에서 — 첫 거래일의 전일 종가가 필요하다
 
 
 def main() -> None:

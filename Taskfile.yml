@@ -34,7 +34,7 @@ tasks:
     cmds:
       - >-
         uv run --locked --group collect python -m collect.news
-        --start {{.START | default "2023-01-01"}}
+        --start {{.START | default "2022-01-01"}}
         {{if .END}}--end {{.END}}{{end}}
         {{if .TICKER}}--ticker {{.TICKER}}{{end}}
         --out {{.OUT | default "data"}}

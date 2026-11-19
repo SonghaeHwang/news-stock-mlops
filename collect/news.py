@@ -1,6 +1,6 @@
 """헤드라인을 Google 뉴스 RSS 에서 하루 단위로 받는다.
 
-    python -m collect.news --start 2023-01-01                 과거 전체 (어제까지)
+    python -m collect.news --start 2022-01-01                 과거 전체 (어제까지)
     python -m collect.news --start 2026-10-01 --end 2026-10-31 --ticker kakao
     python -m collect.news --days 3 --out data/incoming       최근 3일만 (매일 도는 수집)
 
@@ -10,7 +10,7 @@
 - 최근 날짜부터 과거로 내려간다. 중간에 막혀도 최근 구간은 다섯 종목이 다 채워져 있다.
 - 걸러내지 않고 그대로 저장한다. 이 종목 기사인지는 특징 단계가 tickers.yml 로 판단한다.
 - date 는 그 시장의 현지 날짜다 (한국 종목은 KST, 미국 종목은 미국 동부).
-- 429 · 503 을 받으면 기다렸다 다시 하고, 세 번 실패하면 멈춘다 (종료 코드 1).
+- 429 · 503 을 받으면 기다렸다 다시 한다 (60초부터 1시간까지 늘려 가며). 끝까지 안 되면 멈춘다 (종료 코드 1).
 """
 import argparse
 import datetime as dt
@@ -29,8 +29,9 @@ from zoneinfo import ZoneInfo
 from collect.config import load_tickers
 
 RSS = "https://news.google.com/rss/search"
-PAUSE = (1.0, 2.0)  # 조회 사이에 쉬는 시간(초) 범위
-BACKOFF = (60, 180, 420)  # 막혔을 때 기다리는 시간(초)
+PAUSE = (4.0, 6.0)  # 조회 사이에 쉬는 시간(초) 범위 — 1~2초로는 약 230회에서 429 를 받았다
+REST_EVERY, REST = 200, 120  # 이만큼 조회할 때마다 이만큼(초) 쉰다
+BACKOFF = (60, 180, 420, 900, 1800, 3600)  # 막혔을 때 기다리는 시간(초) — 밤새 돌려도 스스로 죽지 않게 길게 둔다
 
 
 class Blocked(Exception):
@@ -157,7 +158,13 @@ def main() -> None:
                 queries += 1
                 if queries % 50 == 0:
                     print(f"  {queries}/{todo}회, 새 헤드라인 {added}건, 지금 {day}", flush=True)
-                time.sleep(random.uniform(*PAUSE))
+                if queries == todo:
+                    break  # 마지막 조회 뒤에는 쉬지 않는다
+                if queries % REST_EVERY == 0:
+                    print(f"  {REST}초 쉰다", flush=True)
+                    time.sleep(REST)
+                else:
+                    time.sleep(random.uniform(*PAUSE))
     except Blocked as e:
         sys.exit(f"막혔다 ({e}). {queries}/{todo}회에서 멈춤 — 나중에 같은 명령을 다시 치면 이어서 받는다")
     print(f"끝: 조회 {queries}회, 새 헤드라인 {added}건", flush=True)

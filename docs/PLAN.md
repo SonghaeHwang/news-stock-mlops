@@ -32,7 +32,7 @@
 - [ ] `collect/prices.py` — 다섯 종목과 지수 세 개의 일별 종가 → `data/prices/<코드>.csv`
 - [ ] `collect/news.py` — 종목 · 날짜 범위를 받아 하루 단위로 조회 → `data/news/<종목>/<YYYY-MM>.jsonl`. 이미 받은 날은 건너뛴다(끊겨도 이어서 받게)
 - [ ] 시험 수집: 한 종목 한 달치. 건수 · 중복 · 날짜를 눈으로 확인
-- [ ] `task data:backfill` 로 전체 수집 시작 (다섯 종목, 2023-01 ~ 어제). 조회 사이에 간격을 둔다
+- [ ] `task data:backfill` 로 전체 수집 시작 (다섯 종목, 2022-01 ~ 어제). 조회 사이에 간격을 둔다
 - [ ] `collect/check.py` + `task data:check` — 빈 날 비율, 중복, 날짜 범위, 종목 누락
 - [ ] `task data:daily` — 어제 ~ 오늘만 수집해 `data/incoming/` 에 둔다
 

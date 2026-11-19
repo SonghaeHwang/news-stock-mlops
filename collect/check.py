@@ -8,7 +8,7 @@
 - 중복: 같은 (제목, 매체)가 두 번 들어 있지 않은가
 - 날짜: date 가 YYYY-MM-DD 이고 미래가 아닌가
 - 주가: 종목 · 지수의 종가 파일이 있고, 마지막 날짜가 7일 안쪽인가
-이 종목 기사로 인정되는 비율(match)은 참고로 보여 준다 (실패 조건은 아니다).
+인정 비율과 기업명 · 대표 · 대표 상품 언급 건수는 참고로 보여 준다 (실패 조건은 아니다).
 """
 import argparse
 import csv
@@ -19,18 +19,9 @@ import sys
 from pathlib import Path
 
 from collect.config import load_tickers, price_codes
+from features.match import KINDS, classify
 
 STALE_DAYS = 7
-
-
-def is_about(title: str, t: dict) -> bool:
-    """이 헤드라인이 그 종목 기사인가 — 기업명 · 대표 · 대표 상품 중 하나가 있고 exclude 는 없다."""
-    low = title.lower()
-    if any(x.lower() in low for x in t.get("exclude", [])):
-        return False
-    if any(re.search(pat, title, re.IGNORECASE) for pat in t["match"]):
-        return True
-    return any(x.lower() in low for x in (*t.get("people", []), *t.get("products", [])))
 
 
 def main() -> None:
@@ -42,7 +33,7 @@ def main() -> None:
     tickers = load_tickers()
     problems: list[str] = []
 
-    print(f"{'종목':<10}{'헤드라인':>8}{'인정':>7}{'조회한 날':>9}  기간")
+    print(f"{'종목':<10}{'헤드라인':>8}{'인정':>7}{'기업명':>7}{'대표':>6}{'상품':>6}{'조회한 날':>9}  기간")
     for slug, t in tickers.items():
         rows, seen, dup = [], set(), 0
         for f in sorted((root / "news" / slug).glob("*.jsonl")):
@@ -65,8 +56,13 @@ def main() -> None:
             problems.append(f"{slug}: 이상한 날짜 {bad[:3]}")
         if dup:
             problems.append(f"{slug}: 중복 {dup}건")
-        about = sum(is_about(r["title"], t) for r in rows)
-        print(f"{slug:<10}{len(rows):>8}{about / len(rows):>7.0%}{n_done:>9}  {dates[0]} ~ {dates[-1]}")
+        kinds = [classify(r["title"], t) for r in rows]
+        about = sum(any(k.values()) for k in kinds)
+        n = {kind: sum(k[kind] for k in kinds) for kind in KINDS}
+        print(
+            f"{slug:<10}{len(rows):>8}{about / len(rows):>7.0%}{n['name']:>7}{n['people']:>6}{n['products']:>6}"
+            f"{n_done:>9}  {dates[0]} ~ {dates[-1]}"
+        )
 
     for code in price_codes(tickers):
         f = root / "prices" / f"{code}.csv"
