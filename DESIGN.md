@@ -119,16 +119,16 @@ v* 태그 ─────── test → image (GitHub) : task api:image → GHC
 **새 데이터의 시작점은 사람이다** (2026-11-19 변경): 사람이 빅카인즈 엑셀을 내려받아 정해진 폴더(`data/raw/bigkinds/`)에 넣는다.
 그 뒤 변환 → 데이터 검사 → 학습 → 게이트 → parity → 배포가 자동이다. 교안 요건 "새로운 데이터에 대해 자동화된 학습과 모델 검증"은 이 구간으로 채운다.
 
-**`model.yml` 을 무엇으로 시작시킬지는 정하지 않았다** (수동 실행 / 새 파일 올리기 등). 아래 collect Job 의 세부도 그 결정에 따라 바뀐다.
+**`model.yml` 은 `dataset/` 이 바뀐 커밋이 main 에 올라오면 시작한다** (11/19 정함, 수동 실행도 된다). 내 PC 의 `task data:submit` 이 엑셀 변환 → 주가 → 검사 → `dataset/` 커밋 · 푸시까지 한다.
 
 > 그 전의 기록: 평일 아침 1회 예약 실행으로 collect Job 이 Google 뉴스에서 어제~오늘 헤드라인을 받는(`task data:daily`) 흐름이었다.
 > 헤드라인은 Google 을 쓰지 않기로 해 뺐다. 이유: 출처가 바뀌는 경계가 게이트의 검증 구간(최근 60거래일)과 겹치고, 건수 기준(빅카인즈 평일 40~70건, Google 최근 약 100건) · 매체 구성 · 중복 비율이 달라 모델이 출처 차이를 "평소보다 기사가 많다"로 잘못 배울 수 있다 (TROUBLES.md).
 
 ```
-collect (미정)   : 새 빅카인즈 엑셀 → task data:bigkinds → task data:prices → task data:check
-   │ artifact: incoming
-store   (서버)   : task data:store → task data:fetch        버킷 적재 후 전체를 내려받음
-   │ artifact: dataset + 현재 모델
+submit  (내 PC)  : task data:submit                         엑셀 변환 → 주가 → 검사 → dataset/ 커밋 · 푸시
+   │ 푸시: dataset/
+store   (서버)   : task data:store → task data:fetch        dataset/ 을 버킷에 쌓고, 현재 모델을 꺼낸다
+   │ artifact: 현재 모델
 train   (GitHub) : task model                               학습 → 게이트 → ONNX → parity → 카드
    │ artifact: model
 promote (서버)   : task deploy:promote                      버킷에 새 버전 → 띄워서 확인 → 포인터
@@ -162,11 +162,10 @@ promote (서버)   : task deploy:promote                      버킷에 새 버�
 ### 5.1 버킷
 
 ```
-data/news/<종목>/<YYYY-MM>.jsonl     헤드라인 {date, published, title, source} — 국내 종목(빅카인즈)은 id · flag 가 더 있다
-data/prices/<코드>.csv               종목 · 지수 일별 종가
+data/dataset/<종목>.csv             학습에 쓴 날짜별 건수 요약 (제목 원문은 내 PC 에만 둔다)
 models/<버전>/model.onnx            버전마다 폴더 하나, 올린 뒤 고치지 않는다
 models/<버전>/model.json            모델 카드
-models/current.json                 포인터 — 지금 서비스 중인 버전
+models/current.json                 포인터 — 지금 서비스 중인 버전 {version, previous, set_at, run}
 ```
 
 버전 이름은 `m<날짜>-<실행 번호>` (예: `m20261121-3`).
@@ -180,6 +179,7 @@ models/current.json                 포인터 — 지금 서비스 중인 버전
 
 ### 5.2 서버 (Lightsail 인스턴스)
 
+- 실습에 쓰던 인스턴스를 그대로 쓴다 (11/19). 2 vCPU · 메모리 1.9GB, 시드니 리전.
 - Docker Compose 로 API 컨테이너 하나. 80 → 8080.
 - GitHub self-hosted 러너. 서버에서 도는 Job 은 이 러너가 받는다.
 - `/srv/news/` 에 `.env`(이미지 태그 · 모델 버전), `compose.yml`, `models/`.
@@ -190,12 +190,13 @@ models/current.json                 포인터 — 지금 서비스 중인 버전
 | 경로 | 내용 |
 |---|---|
 | `GET /health` | `{status, app_version, model_version}` |
-| `POST /predict` | 입력 `{ticker, headlines[]}` → `{ticker, prob_up, model_version, features}` |
+| `POST /predict` | 입력 `{ticker, headlines[], date?}` → `{ticker, prob_up, model_version, counts, features}` |
 | `GET /tickers` | 지원 종목과 별칭 |
 
 - 응답에 `model_version` 을 넣는다. 승격 · 롤백이 눈에 보인다.
 - 응답에 `features` 를 넣는다. 어떤 언급이 잡혔는지 보여 준다.
-- 모델 파일이 없으면 기준선(rule)으로 답한다.
+- 모델 파일이 없으면 기준선(rule)으로 답한다 (확률 0.5, `model_version: rule`).
+- 모델 카드의 특징 목록이 이미지의 특징 계산과 다르면 띄우지 않는다. 서버는 이를 health 실패로 보고 이전 버전으로 돌아간다.
 
 ### 5.4 폴더 구조
 

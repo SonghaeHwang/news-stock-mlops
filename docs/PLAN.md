@@ -9,6 +9,7 @@
 
 - **절대 규칙.** 과제 필수 기능 다섯 가지(Lightsail 인스턴스/버킷, GitHub CI/CD, 새 데이터 자동 학습 · 검증, 통과 모델 API 배포, 롤백)는 어떤 경우에도 빼거나 약화하지 않는다. 방법은 바꿔도 되지만 다섯 개 모두 시연할 수 있어야 한다. 설계 변경 · 범위 축소 · 일정 조정은 이 다섯 가지에 닿는지 먼저 확인한다. 목록과 증거는 아래 [요건 점검표](#요건-점검표).
 - 한 단계가 끝나기 전에 다음 단계의 코드를 만들지 않는다. 단, 0단계의 과거 수집은 뒤에서 계속 돌려 둔다.
+  - 예외 (11/19): 빅카인즈가 서버 점검으로 막혀 1단계의 전체 내려받기를 못 했다. 데이터가 없어도 되는 4 ~ 6단계와 7 · 8단계의 코드를 먼저 만들었다. 2 · 3단계의 체크는 전체 데이터를 받은 뒤에 한다.
 - 새 실행 단계가 생기면 먼저 `Taskfile.yml` 에 태스크를 만들고, 그 태스크로만 실행한다.
 - 단계를 끝낼 때마다 커밋한다. 서버에 올라가는 것은 `v*` 태그로만 올린다.
 - 단계마다 "내가 정한 것 / AI 에게 맡긴 것 / AI 답을 고친 것"을 [DEVLOG.md](DEVLOG.md) 에 두세 줄 남긴다. 발표의 "AI 활용" 항목에 쓴다.
@@ -77,37 +78,39 @@
 
 ## 4단계 — API 와 이미지 (11/20 금)
 
-- [ ] `api/app.py` — `/health`, `/predict`, `/tickers`. 모델이 없으면 기준선으로 답한다
-- [ ] `api/predictors/` — `rule`, `onnx`. `onnx` 는 `MODEL_DIR` 의 모델과 `model.json` 을 읽는다
-- [ ] 테스트: 응답 모양, 모르는 종목, 빈 헤드라인, 학습 쪽 특징과 API 쪽 특징이 같은지
-- [ ] `api/Dockerfile` (scikit-learn 없이), `task api:image`, `task api:smoke`
+- [x] `api/app.py` — `/health`, `/predict`, `/tickers`. 모델이 없으면 기준선으로 답한다
+- [x] `api/predictors/` — `rule`, `onnx`. `onnx` 는 `MODEL_DIR` 의 모델과 `model.json` 을 읽는다. 카드의 특징 목록이 이미지의 특징 계산과 다르면 띄우지 않는다
+- [x] 테스트: 응답 모양, 모르는 종목, 빈 헤드라인, 학습 쪽 특징과 API 쪽 특징이 같은지, ONNX 의 답이 scikit-learn 과 같은지 (`tests/test_api.py`)
+- [x] `api/Dockerfile` (scikit-learn 없이), `task api:image`, `task api:run`, `task api:smoke`
 
 끝났다는 기준: 로컬 컨테이너에 `task api:smoke` 가 통과하고 응답에 `model_version` 이 나온다.
 
 ## 5단계 — 코드 CI/CD (11/20 금)
 
-- [ ] `.github/workflows/ci.yml` — PR · main 은 `task test`, `v*` 태그는 `task api:image` 후 GHCR 푸시
-- [ ] `[직접]` 저장소의 Actions 권한과 패키지 쓰기 권한 확인
-- [ ] `v0.1.0` 태그를 밀어 이미지가 올라가는지 확인
+- [x] `.github/workflows/ci.yml` — PR · main 은 `task test`, `v*` 태그는 `task api:image` · `task api:push` 로 GHCR 푸시
+- [x] `[직접]` 저장소의 Actions 권한과 패키지 쓰기 권한 확인 — 따로 바꾸지 않아도 `v0.1.0` 이 올라갔다
+- [x] `v0.1.0` 태그를 밀어 이미지가 올라가는지 확인 (11/19)
 
 끝났다는 기준: GHCR 에 `v0.1.0` 이미지가 있다. (서버 배포 Job 은 6단계에서 붙인다)
 
 ## 6단계 — 서버와 버킷 (11/21 토)
 
-- [ ] `[직접]` Lightsail 인스턴스 만들기 (Amazon Linux 2023), 고정 IP, 80 포트 열기
+- [x] `[직접]` Lightsail 인스턴스 (Amazon Linux 2023), 고정 IP, 80 포트 — 새로 만들지 않고 실습(eta)에 쓰던 인스턴스를 쓴다 (11/19). 2 vCPU · 메모리 1.9GB · 디스크 56GB 여유. eta 컨테이너는 내렸고 파일 · 이미지는 `/srv/eta` 에 그대로 있다
 - [ ] `[직접]` Lightsail 버킷 만들기, 인스턴스에 리소스 액세스 연결
-- [ ] `deploy/lightsail/bootstrap.sh` — Docker · Compose · Task 설치, `/srv/news/` 만들기
-- [ ] `[직접]` 서버에 GitHub self-hosted 러너 등록 (라벨 `lightsail`), 저장소 변수 `MODEL_BUCKET`
-- [ ] `deploy/lightsail/compose.yml`, `server.sh` (image · model · status)
-- [ ] `task deploy:image`, `task deploy:status` — `ci.yml` 에 서버 배포 Job 추가
-- [ ] `v0.1.1` 태그로 서버까지 배포
+- [x] `deploy/lightsail/bootstrap.sh` — Docker · Compose · Task 설치, `/srv/news/` 만들기, 러너 등록. 여러 번 돌려도 된다
+- [x] 서버에 GitHub self-hosted 러너 등록 (라벨 `lightsail`, 폴더 `~/actions-runner-news`. eta 의 러너와 따로다)
+- [ ] `[직접]` 저장소 변수 `MODEL_BUCKET` (버킷을 만든 뒤)
+- [x] `deploy/lightsail/compose.yml`, `server.sh` (image · model · status)
+- [x] `task deploy:image`, `task deploy:status` — `ci.yml` 에 서버 배포 Job 추가
+- [x] 태그로 서버까지 배포 — `v0.1.0` 한 번에 테스트 → 이미지 → 서버까지 갔다 (11/19)
 
-끝났다는 기준: 서버 주소의 `/health` 가 `app_version: v0.1.1` 로 답한다. (요건 1 · 2)
+끝났다는 기준: 서버 주소의 `/health` 가 `app_version: v0.1.0` 으로 답한다. (요건 1 · 2) — 11/19 확인. 버킷만 남았다
 
 ## 7단계 — 모델 배포 (11/21 토 ~ 11/22 일)
 
-- [ ] 과거 수집분을 서버로 옮겨 `task data:store` 로 버킷에 올린다 (버킷은 서버만 만진다)
-- [ ] `deploy/lightsail/models.py` — `promote`, `rollback`. 띄워서 확인한 뒤에 포인터를 바꾼다
+- [ ] `task data:store` 로 `dataset/` 을 버킷의 `data/dataset/` 에 올린다 (버킷은 서버만 만진다). `model.yml` 의 store Job 이 한다 — 코드는 썼고 버킷을 붙인 뒤 확인한다
+- [ ] `deploy/lightsail/models.py` — `store`, `current`, `promote`, `rollback`, `list`. 띄워서 확인한 뒤에 포인터를 바꾼다 — 코드는 썼고 버킷을 붙인 뒤 확인한다
+- [x] 모델 교체와 자동 복귀 (`server.sh model`): 정상 모델로 바뀌는 것, 특징 목록이 어긋난 모델은 뜨지 않고 이전 모델로 돌아가는 것을 서버에서 확인했다 (11/19, 시험 모델은 지웠다)
 - [ ] `task data:store`, `task data:fetch`, `task deploy:promote`
 - [ ] `.github/workflows/model.yml` — collect(새 빅카인즈 엑셀 변환 · 주가 · 검사) → store → train → promote, 수동 실행으로 먼저 확인. 시작 방법은 `dataset/` 이 바뀐 커밋 푸시 (47행, 11/19 정함)
 - [ ] 첫 승격: `/health` 의 `model_version` 이 새 버전으로 바뀌는지 확인
@@ -117,7 +120,7 @@
 ## 8단계 — 예약 재학습 · 롤백 · 시연 준비 (11/22 일)
 
 - [ ] 새 엑셀을 `data/raw/bigkinds/` 에 넣으면 `task data:submit`(또는 `data:watch`)이 `dataset/` 을 푸시하고, 그 푸시로 `model.yml` 이 GitHub 에서 실제로 도는지 확인 (시작 방법은 47행, 11/19 정함). 그 전의 기록: 예약 실행(평일 아침 1회) — Google 매일 수집을 뺀 뒤로는 예약 실행이 받아 올 새 데이터가 없다
-- [ ] `.github/workflows/rollback.yml` + `task deploy:rollback`
+- [ ] `.github/workflows/rollback.yml` + `task deploy:rollback` — 코드는 썼고 첫 승격 뒤에 확인한다
 - [ ] 롤백 실행: 이전 버전으로 되돌리고 `/health` 로 확인
 - [ ] 탈락 실행: 게이트에서 멈춰 promote Job 이 돌지 않는 실행 기록을 하나 남긴다
 - [ ] 증거 모으기: 통과 · 탈락 · 롤백 세 실행의 화면과 링크
