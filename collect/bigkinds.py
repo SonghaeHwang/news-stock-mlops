@@ -87,6 +87,15 @@ def to_row(r: dict) -> dict:
     }
 
 
+MIN_SHARE = 0.05  # 제목이 그 종목 기사인 행의 비율. 카카오 13개 파일은 19 ~ 56% 였다
+MIN_ROWS = 100    # 이보다 작은 파일은 비율을 믿기 어려워 검사하지 않는다
+
+
+def wrong_ticker(n_rows: int, n_about: int) -> bool:
+    """파일 이름의 종목과 내용이 어긋나 보이는가 (다른 종목의 파일에 이름을 잘못 붙였을 때)."""
+    return n_rows >= MIN_ROWS and n_about / n_rows < MIN_SHARE
+
+
 def convert_file(f: Path, out: Path, tickers: dict[str, dict]) -> tuple[int, int, int, int]:
     """엑셀 한 개를 헤드라인 파일에 더한다. (행, 저장, 이미 있음, 제목에 없음) 을 돌려준다."""
     slug = f.stem.split("_")[0]
@@ -99,11 +108,16 @@ def convert_file(f: Path, out: Path, tickers: dict[str, dict]) -> tuple[int, int
     for j in folder.glob("*.jsonl"):
         with open(j, encoding="utf-8") as fh:
             seen.update(json.loads(line)["id"] for line in fh)
-    rows = read_xlsx(f)
+    rows = [to_row(r) for r in read_xlsx(f)]
+    about = [is_about(row["title"], tickers[slug]) for row in rows]
+    if wrong_ticker(len(rows), sum(about)):
+        share = {s: sum(is_about(row["title"], t) for row in rows) / len(rows) for s, t in tickers.items() if "bigkinds" in t}
+        sys.exit(f"{f.name}: 제목이 {slug} 기사인 행이 {sum(about)}/{len(rows)} ({sum(about) / len(rows):.1%}) 뿐이다 "
+                 f"(기준 {MIN_SHARE:.0%} 이상) — 다른 종목의 파일에 이름을 잘못 붙였는가. 아무것도 저장하지 않았다.\n"
+                 f"  종목별 비율: {', '.join(f'{s} {v:.1%}' for s, v in share.items())}")
     saved = had = unrelated = 0
-    for r in rows:
-        row = to_row(r)
-        if not is_about(row["title"], tickers[slug]):
+    for row, ok in zip(rows, about):
+        if not ok:
             unrelated += 1  # 본문 · 기관 항목에만 종목 이름이 있는 기사
             continue
         if row["id"] in seen:
