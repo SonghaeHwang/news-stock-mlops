@@ -96,19 +96,19 @@
 ## 6단계 — 서버와 버킷 (11/21 토)
 
 - [x] `[직접]` Lightsail 인스턴스 (Amazon Linux 2023), 고정 IP, 80 포트 — 새로 만들지 않고 실습(eta)에 쓰던 인스턴스를 쓴다 (11/19). 2 vCPU · 메모리 1.9GB · 디스크 56GB 여유. eta 컨테이너는 내렸고 파일 · 이미지는 `/srv/eta` 에 그대로 있다
-- [ ] `[직접]` Lightsail 버킷 만들기, 인스턴스에 리소스 액세스 연결
+- [x] `[직접]` Lightsail 버킷 만들기, 인스턴스에 리소스 액세스 연결 — `shhwang-news-models` (시드니, 비공개, 접근 키 없음). 서버에서 목록 · 쓰기 · 읽기 · 지우기 확인 (11/20)
 - [x] `deploy/lightsail/bootstrap.sh` — Docker · Compose · Task 설치, `/srv/news/` 만들기, 러너 등록. 여러 번 돌려도 된다
 - [x] 서버에 GitHub self-hosted 러너 등록 (라벨 `lightsail`, 폴더 `~/actions-runner-news`. eta 의 러너와 따로다)
-- [ ] `[직접]` 저장소 변수 `MODEL_BUCKET` (버킷을 만든 뒤)
+- [x] 저장소 변수 `MODEL_BUCKET` (11/20)
 - [x] `deploy/lightsail/compose.yml`, `server.sh` (image · model · status)
 - [x] `task deploy:image`, `task deploy:status` — `ci.yml` 에 서버 배포 Job 추가
 - [x] 태그로 서버까지 배포 — `v0.1.0` 한 번에 테스트 → 이미지 → 서버까지 갔다 (11/19)
 
-끝났다는 기준: 서버 주소의 `/health` 가 `app_version: v0.1.0` 으로 답한다. (요건 1 · 2) — 11/19 확인. 버킷만 남았다
+끝났다는 기준: 서버 주소의 `/health` 가 `app_version: v0.1.0` 으로 답한다. (요건 1 · 2) — 11/19 확인. 버킷은 11/20 에 붙였다
 
 ## 7단계 — 모델 배포 (11/21 토 ~ 11/22 일)
 
-- [ ] `task data:store` 로 `dataset/` 을 버킷의 `data/dataset/` 에 올린다 (버킷은 서버만 만진다). `model.yml` 의 store Job 이 한다 — 코드는 썼고 버킷을 붙인 뒤 확인한다
+- [ ] `task data:store` 로 `dataset/` 을 버킷의 `data/dataset/` 에 올린다 (버킷은 서버만 만진다). `model.yml` 의 store Job 이 한다 — 서버에서 손으로 돌려 카카오 파일이 버킷에 올라가는 것을 확인했다 (11/20). `model.yml` 안에서 도는 것은 아직
 - [ ] `deploy/lightsail/models.py` — `store`, `current`, `promote`, `rollback`, `list`. 띄워서 확인한 뒤에 포인터를 바꾼다 — 코드는 썼고 버킷을 붙인 뒤 확인한다
 - [x] 모델 교체와 자동 복귀 (`server.sh model`): 정상 모델로 바뀌는 것, 특징 목록이 어긋난 모델은 뜨지 않고 이전 모델로 돌아가는 것을 서버에서 확인했다 (11/19, 시험 모델은 지웠다)
 - [ ] `task data:store`, `task data:fetch`, `task deploy:promote`
