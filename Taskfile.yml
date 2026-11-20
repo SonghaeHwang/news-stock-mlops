@@ -116,6 +116,12 @@ tasks:
       - task: model:parity
       - task: model:card
 
+  # ── 분석 (모델 · 배포와 따로 본다) ─────────────────────
+  analysis:event:
+    desc: 헤드라인이 나온 날의 전날 · 당일 · 다음 날 주가를 비교한다 (호재/악재 · 기사 양 · 언급 유형 · 휴장일)
+    cmds:
+      - uv run --locked --group collect --group train python -m analysis.event --dataset {{.DATASET | default "dataset"}} --prices {{.PRICES | default "data/prices"}}
+
   # ── API ────────────────────────────────────────────────
   # IMAGE 는 이미지 이름(레지스트리 경로 포함), TAG 는 v* 태그. CI 가 둘 다 넘긴다
   api:serve:
