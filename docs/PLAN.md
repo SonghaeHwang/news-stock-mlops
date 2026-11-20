@@ -45,10 +45,10 @@
 - [x] `collect/bigkinds.py` + `task data:bigkinds` — 엑셀 → `data/news/<종목>/<YYYY-MM>.jsonl`, 제목이 그 종목 기사인 것만 저장
 - [x] 검색 건수 확인: OR · NOT · 긴 검색어가 되는지, 종목별 한 달 건수
 - [x] `[직접]` 첫 내려받기 한 건(카카오 2022-10)으로 확인: 화면 검색 건수 10,093 = 파일 행 수 10,093, 한도는 20,000건 (11/19, Aside 로 내려받음)
-- [ ] `[직접]` 전체 내려받기: 5종목 × 59개월 = 295개 파일 (하이브 · SK하이닉스는 11/19 추가) → `data/raw/bigkinds/<종목>_<시작일>-<끝일>.xlsx`
-- [ ] `task data:bigkinds` 로 변환, `task data:check` 로 검사
+- [x] `[직접]` 전체 내려받기: 5종목 × 59개월, 297개 파일 (삼성전자 2026-05 · 07 은 한도 2만 건을 넘어 반 달씩) → `data/raw/bigkinds/<종목>_<시작일>-<끝일>.xlsx` (11/20)
+- [x] `task data:ingest` 로 변환, `task data:check` 로 검사 — 다섯 종목 통과, 헤드라인 501,834건 (11/21)
 - [x] 새 데이터를 넣는 방법 (11/19 정함): 엑셀을 `data/raw/bigkinds/` 에 넣으면 `task data:submit` 이 변환 → 주가 → 검사 → `dataset/`(날짜별 건수, 제목 없음) 커밋 · 푸시까지 한다. `dataset/` 이 바뀐 커밋이 올라오면 `model.yml` 이 시작된다. `task data:watch` 를 켜 두면 파일을 넣는 것만으로 `data:submit` 이 돈다
-- [x] `collect/ingest.py`, `collect/watch.py`, `features/daily.py`, `features/build.py`, `training/*`, `config/lexicon.yml`(초안), `config/gate.yml`(초안), `.github/workflows/model.yml` · `ci.yml` — 가짜 건수 + 실제 주가로 `task model` 통과 · 탈락을 확인했다. 실제 데이터와 GitHub 에서의 실행은 아직이다
+- [x] `collect/ingest.py`, `collect/watch.py`, `features/daily.py`, `features/build.py`, `training/*`, `config/lexicon.yml`(초안), `config/gate.yml`(초안), `.github/workflows/model.yml` · `ci.yml` — 가짜 건수 + 실제 주가로 `task model` 통과 · 탈락을 확인했다. 실제 데이터로는 11/21 에 돌렸다 (2 · 3단계). 전체 데이터로 GitHub 에서 도는 것은 7단계
 
 끝났다는 기준: `task data:check` 가 다섯 종목 모두 통과한다.
 
@@ -56,24 +56,24 @@
 
 ## 2단계 — 학습표와 특징 (11/19 목)
 
-- [ ] `config/lexicon.yml` — 호재 · 악재 단어, 한국어와 영어 각각 20~30개
+- [x] `config/lexicon.yml` — 호재 25개 · 악재 33개, 한국어만 (미국 종목을 뺐다). 초안 그대로 확정 (11/21, 근거는 DESIGN.md 4.3)
 - [x] `features/match.py` — 기업명 · 대표 · 대표 상품 · 계열사 언급 판정 (COLLECTION.md 4절), 테스트 20개
-- [ ] `features/build.py` — 헤드라인 묶음 → 특징 (언급 유형, 건수, 어휘, 달력, 종목). 학습과 API 가 함께 쓴다
-- [ ] `training/dataset.py` — 헤드라인을 거래일에 묶고(주말 · 공휴일은 직전 거래일), 시장 대비 다음 거래일 수익률로 정답을 붙인다
-- [ ] 테스트: 토요일 기사가 금요일 행에 묶이는지, 정답이 비교 지수를 빼고 계산되는지, 정답이 없는 마지막 행이 학습에서 빠지는지
-- [ ] `task model:features` → `artifacts/dataset.csv`, 행 수와 정답 비율 출력
+- [x] `features/build.py` — 헤드라인 묶음 → 특징 (언급 유형, 건수, 어휘, 달력, 종목). 학습과 API 가 함께 쓴다
+- [x] `training/dataset.py` — 헤드라인을 거래일에 묶고(주말 · 공휴일은 직전 거래일), 시장 대비 다음 거래일 수익률로 정답을 붙인다
+- [x] 테스트: 토요일 기사가 금요일 행에 묶이는지, 정답이 비교 지수를 빼고 계산되는지, 정답이 없는 마지막 행이 학습에서 빠지는지
+- [x] `task model:features` → `artifacts/dataset.csv`, 행 수와 정답 비율 출력 — 5,935행, 종목마다 1,187행, 정답 1 비율 45% ~ 49% (11/21)
 
 끝났다는 기준: `task test` 통과, 학습표의 종목별 행 수와 정답 비율(50% 근처)을 확인했다.
 
 ## 3단계 — 학습 · 게이트 · parity (11/19 목)
 
-- [ ] `training/train.py` — 시간순으로 나눠 학습 (마지막 60거래일은 떼어 둔다)
-- [ ] 기준선과 모델의 점수를 한 번 뽑아 보고, 게이트 기준 숫자를 정해 DESIGN.md 4.3 에 적는다
-- [ ] `training/gate.py` — 데이터 · 기준선 · 현재 모델 세 가지 검사, 실패하면 종료 코드 1 과 이유 출력
-- [ ] `training/export_onnx.py`, `training/parity.py` — 표본 200행에서 확률 차이 확인
-- [ ] `training/card.py` — 버전 이름 · 지표 · 데이터 기간 · 종목별 평균 건수를 `model.json` 에
-- [ ] `task model` 로 여섯 단계를 이어서 실행
-- [ ] 탈락 확인: 학습을 일부러 망가뜨려(예: 데이터 5%만) `task model` 이 게이트에서 멈추는지 본다
+- [x] `training/train.py` — 시간순으로 나눠 학습 (마지막 60거래일은 떼어 둔다)
+- [x] 기준선과 모델의 점수를 한 번 뽑아 보고, 게이트 기준 숫자를 정해 DESIGN.md 4.3 에 적는다 — 모델 logloss 0.6980, 기준선 0.6994. 기준선 허용 오차를 0.005 → 0.01 로 (11/21)
+- [x] `training/gate.py` — 데이터 · 기준선 · 현재 모델 세 가지 검사, 실패하면 종료 코드 1 과 이유 출력
+- [x] `training/export_onnx.py`, `training/parity.py` — 표본 200행에서 확률 차이 확인 (최대 4.9e-08, 기준 1e-04)
+- [x] `training/card.py` — 버전 이름 · 지표 · 데이터 기간 · 종목별 평균 건수를 `model.json` 에
+- [x] `task model` 로 여섯 단계를 이어서 실행
+- [x] 탈락 확인: 학습을 일부러 망가뜨려(예: 데이터 5%만) `task model` 이 게이트에서 멈추는지 본다 — `SAMPLE=0.05` 로 데이터 검사(종목마다 56행)와 기준선 검사(0.7107 대 0.6935) 둘 다에 걸려 종료 코드 1 (11/21)
 
 끝났다는 기준: `task model` 이 통과해 `artifacts/model.onnx` · `model.json` 이 생기고, 망가뜨린 학습은 게이트에서 멈춘다.
 

@@ -7,7 +7,7 @@
 
 ## 먼저 알아 둘 것
 
-- **첫 실행은 로컬에서 먼저 본다.** `task data:submit` 은 `dataset/` 을 푸시하고, 그 푸시로 `model.yml` 이 store → train → promote 까지 간다. 저장소 변수 `MODEL_BUCKET` 이 있으므로 게이트를 통과하면 서버의 모델이 바로 바뀐다. `config/gate.yml` 의 기준이 아직 초안이라, 점수를 보고 기준을 정한 뒤에 올린다.
+- **첫 실행은 로컬에서 먼저 본다.** `task data:submit` 은 `dataset/` 을 푸시하고, 그 푸시로 `model.yml` 이 store → train → promote 까지 간다. 저장소 변수 `MODEL_BUCKET` 이 있으므로 게이트를 통과하면 서버의 모델이 바로 바뀐다. `config/gate.yml` 의 기준은 11/21 에 정했다 (DESIGN.md 4.3).
 - 두 번째부터는 엑셀을 넣고 `task data:submit` (또는 켜 둔 `task data:watch`) 하나면 된다. 이것이 요건 3 "새 데이터 자동 학습 · 검증"이다.
 - 내려받는 중에는 1번을 돌리지 않는다. 옮기는 중인 파일을 읽을 수 있다.
 
@@ -51,7 +51,7 @@ task model
 게이트의 세 검사 (`config/gate.yml`):
 
 1. 데이터 — 종목마다 학습 행 200개 이상, 평가 행 100개 이상, 정답 비율 0.35 ~ 0.65
-2. 기준선 — 모델의 logloss ≤ 기준선 + 0.005
+2. 기준선 — 모델의 logloss ≤ 기준선 + 0.01
 3. 현재 모델 — 모델의 logloss ≤ 서비스 중인 모델 + 0.005 (첫 배포에서는 건너뛴다)
 
 ## 4. 기준을 정한다
