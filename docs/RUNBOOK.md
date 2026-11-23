@@ -78,7 +78,7 @@ task data:submit
 
 ## 6. 두 번째 승격
 
-롤백하려면 버킷에 버전이 둘 있어야 한다. 새 엑셀(예: 다음 달 파일, 또는 2024-11 이전의 과거 구간)을 `data/raw/bigkinds/` 에 넣고 다시 `task data:submit` 을 친다.
+롤백하려면 버킷에 버전이 둘 있어야 한다. 새 데이터가 없으면 `model.yml` 을 수동 실행해도 된다 (같은 데이터로 새 버전이 생긴다). 새 엑셀(예: 다음 달 파일, 또는 2024-11 이전의 과거 구간)을 `data/raw/bigkinds/` 에 넣고 다시 `task data:submit` 을 친다.
 
 이번에는 게이트의 3번 검사가 돈다 — 새 모델이 서비스 중인 모델보다 나쁘면 탈락하고 promote 는 돌지 않는다.
 
@@ -93,7 +93,7 @@ GitHub Actions 의 `rollback` 을 수동 실행하고, 입력에 되돌릴 버�
 게이트에서 멈춰 promote 가 돌지 않은 실행 기록이 하나 있어야 한다.
 
 - 로컬에서는 `task model:features` → `task model:train SAMPLE=0.05` → `task model:gate` 로 탈락을 만들 수 있다.
-- GitHub 의 실행 기록으로 남기는 방법은 아직 정하지 않았다. `model.yml` 에는 `SAMPLE` 을 받는 입력이 없다.
+- GitHub 의 실행 기록으로 남기려면 `model.yml` 을 수동 실행하면서 입력 `sample` 에 `0.05` 를 넣는다 (`gh workflow run model -f sample=0.05`). train 이 게이트에서 멈추고 promote 는 건너뛴다.
 
 ## 9. 증거
 

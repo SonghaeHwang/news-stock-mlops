@@ -73,9 +73,9 @@
 - [x] `training/export_onnx.py`, `training/parity.py` — 표본 200행에서 확률 차이 확인 (최대 4.9e-08, 기준 1e-04)
 - [x] `training/card.py` — 버전 이름 · 지표 · 데이터 기간 · 종목별 평균 건수를 `model.json` 에
 - [x] `task model` 로 여섯 단계를 이어서 실행
-- [x] 탈락 확인: 학습을 일부러 망가뜨려(예: 데이터 5%만) `task model` 이 게이트에서 멈추는지 본다 — `SAMPLE=0.05` 로 데이터 검사(종목마다 56행)와 기준선 검사(0.7107 대 0.6935) 둘 다에 걸려 종료 코드 1 (11/21)
+- [x] 탈락 확인: 학습 데이터를 일부러 줄여(예: 5%만) `task model` 이 게이트에서 멈추는지 본다 — `SAMPLE=0.05` 로 데이터 검사(종목마다 56행)와 기준선 검사(0.7107 대 0.6935) 둘 다에 걸려 종료 코드 1 (11/21)
 
-끝났다는 기준: `task model` 이 통과해 `artifacts/model.onnx` · `model.json` 이 생기고, 망가뜨린 학습은 게이트에서 멈춘다.
+끝났다는 기준: `task model` 이 통과해 `artifacts/model.onnx` · `model.json` 이 생기고, 데이터 부족 모델은 게이트에서 멈춘다.
 
 ## 4단계 — API 와 이미지 (11/20 금)
 
@@ -109,22 +109,22 @@
 
 ## 7단계 — 모델 배포 (11/21 토 ~ 11/22 일)
 
-- [ ] `task data:store` 로 `dataset/` 을 버킷의 `data/dataset/` 에 올린다 (버킷은 서버만 만진다). `model.yml` 의 store Job 이 한다 — 서버에서 손으로 돌려 카카오 파일이 버킷에 올라가는 것을 확인했다 (11/20). `model.yml` 안에서 도는 것은 아직
-- [ ] `deploy/lightsail/models.py` — `store`, `current`, `promote`, `rollback`, `list`. 띄워서 확인한 뒤에 포인터를 바꾼다 — 코드는 썼고 버킷을 붙인 뒤 확인한다
+- [x] `task data:store` 로 `dataset/` 을 버킷의 `data/dataset/` 에 올린다 (버킷은 서버만 만진다). `model.yml` 의 store Job 이 한다 — 서버에서 손으로 돌려 카카오 파일이 버킷에 올라가는 것을 확인했다 (11/20). `model.yml` 안에서도 돌았다 (11/23)
+- [x] `deploy/lightsail/models.py` — `store`, `current`, `promote`, `rollback`, `list`. 띄워서 확인한 뒤에 포인터를 바꾼다 — 다섯 명령 모두 실행 기록에서 확인 (11/23)
 - [x] 모델 교체와 자동 복귀 (`server.sh model`): 정상 모델로 바뀌는 것, 특징 목록이 어긋난 모델은 뜨지 않고 이전 모델로 돌아가는 것을 서버에서 확인했다 (11/19, 시험 모델은 지웠다)
-- [ ] `task data:store`, `task data:fetch`, `task deploy:promote`
-- [ ] `.github/workflows/model.yml` — collect(새 빅카인즈 엑셀 변환 · 주가 · 검사) → store → train → promote, 수동 실행으로 먼저 확인. 시작 방법은 `dataset/` 이 바뀐 커밋 푸시 (47행, 11/19 정함)
-- [ ] 첫 승격: `/health` 의 `model_version` 이 새 버전으로 바뀌는지 확인
+- [x] `task data:store`, `task data:fetch`, `task deploy:promote`
+- [x] `.github/workflows/model.yml` — collect(새 빅카인즈 엑셀 변환 · 주가 · 검사) → store → train → promote, 수동 실행으로 먼저 확인. 시작 방법은 `dataset/` 이 바뀐 커밋 푸시 (47행, 11/19 정함). 푸시와 수동 실행 둘 다 store → train → promote 까지 갔다 (11/23)
+- [x] 첫 승격: `/health` 의 `model_version` 이 새 버전으로 바뀌는지 확인 — (없음) → `m20261123-2` → `m20261123-3` (11/23)
 
 끝났다는 기준: `model.yml` 을 수동 실행하면 버킷에 새 데이터와 새 모델 버전이 생기고 서버가 그 버전으로 답한다. (요건 3 · 4)
 
 ## 8단계 — 예약 재학습 · 롤백 · 시연 준비 (11/22 일)
 
-- [ ] 새 엑셀을 `data/raw/bigkinds/` 에 넣으면 `task data:submit`(또는 `data:watch`)이 `dataset/` 을 푸시하고, 그 푸시로 `model.yml` 이 GitHub 에서 실제로 도는지 확인 (시작 방법은 47행, 11/19 정함). 그 전의 기록: 예약 실행(평일 아침 1회) — Google 매일 수집을 뺀 뒤로는 예약 실행이 받아 올 새 데이터가 없다
-- [ ] `.github/workflows/rollback.yml` + `task deploy:rollback` — 코드는 썼고 첫 승격 뒤에 확인한다
-- [ ] 롤백 실행: 이전 버전으로 되돌리고 `/health` 로 확인
-- [ ] 탈락 실행: 게이트에서 멈춰 promote Job 이 돌지 않는 실행 기록을 하나 남긴다
-- [ ] 증거 모으기: 통과 · 탈락 · 롤백 세 실행의 화면과 링크
+- [x] 새 엑셀을 `data/raw/bigkinds/` 에 넣으면 `task data:submit`(또는 `data:watch`)이 `dataset/` 을 푸시하고, 그 푸시로 `model.yml` 이 GitHub 에서 실제로 도는지 확인 (시작 방법은 47행, 11/19 정함). 그 전의 기록: 예약 실행(평일 아침 1회) — Google 매일 수집을 뺀 뒤로는 예약 실행이 받아 올 새 데이터가 없다. `data:submit` 의 푸시로 시작된 것은 11/20, 전체 데이터의 푸시(손으로 커밋)로 시작된 것은 11/23 에 확인
+- [x] `.github/workflows/rollback.yml` + `task deploy:rollback`
+- [x] 롤백 실행: 이전 버전으로 되돌리고 `/health` 로 확인 — `m20261123-3` → `m20261123-2` (11/23)
+- [x] 탈락 실행: 게이트에서 멈춰 promote Job 이 돌지 않는 실행 기록을 하나 남긴다 — `model.yml` 수동 실행의 `sample=0.05` 입력 (11/23)
+- [ ] 증거 모으기: 통과 · 탈락 · 롤백 세 실행의 화면과 링크 — 링크와 로그는 [EVIDENCE.md](EVIDENCE.md) 에 모았다 (11/23). 화면 캡처는 아직
 
 끝났다는 기준: 승격 · 탈락 · 롤백 실행 기록이 각각 하나씩 있다. (요건 5)
 
