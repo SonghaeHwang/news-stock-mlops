@@ -8,6 +8,10 @@ on:
     branches: [main]
     paths: ["dataset/**"]
   workflow_dispatch:
+    inputs:
+      sample:
+        description: "학습 행 중 쓸 비율. 1.0 이 정상, 0.05 는 게이트 탈락 시연 (데이터 부족 모델)"
+        default: "1.0"
 
 concurrency:
   group: model
@@ -51,7 +55,9 @@ jobs:
           path: artifacts/current
       - run: task test
       - run: task data:prices
-      - run: task model
+      - run: task model SAMPLE="$SAMPLE"
+        env:
+          SAMPLE: ${{ inputs.sample }} # 푸시로 시작하면 비어 있고, 그때는 1.0 이다
       - uses: actions/upload-artifact@v4
         if: always()
         with:
